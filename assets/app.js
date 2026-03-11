@@ -287,9 +287,6 @@ async function fetchPosts(page = 1) {
         hasMore     = data.has_more;
         loadMoreWrap.hidden = !hasMore;
 
-        if (channelName.textContent === 'Загрузка...' && data.posts.length > 0) {
-            channelName.textContent = 'Telegram';
-        }
 
     } catch (e) {
         if (page === 1) {

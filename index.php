@@ -1,9 +1,10 @@
+<?php require_once __DIR__ . '/config.php'; ?>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Channel Feed</title>
+    <title><?= htmlspecialchars(CHANNEL_USERNAME) ?></title>
     <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -13,7 +14,7 @@
             <div class="channel-info">
                 <div class="channel-avatar" id="channelAvatar"></div>
                 <div class="channel-meta">
-                    <h1 class="channel-name" id="channelName">Загрузка...</h1>
+                    <h1 class="channel-name" id="channelName"><?= htmlspecialchars(CHANNEL_USERNAME) ?></h1>
                     <span class="channel-label">Telegram-канал</span>
                 </div>
             </div>
@@ -48,8 +49,8 @@
 
     <script>
         window.APP_CONFIG = {
-            syncInterval: 60000,
-            postsPerPage: 20
+            syncInterval: <?= SYNC_INTERVAL * 1000 ?>,
+            postsPerPage: <?= POSTS_PER_PAGE ?>
         };
     </script>
     <script src="assets/app.js"></script>
