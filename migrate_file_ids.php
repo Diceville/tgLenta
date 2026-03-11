@@ -65,13 +65,16 @@ function tgCall(string $method, array $params, array $proxyOpts): mixed {
 
 $pdo = db();
 
-// Посты с локальным media_url и без file_id
+// Посты без file_id: либо с локальным media_url, либо вообще без медиа-ссылки
 $posts = $pdo->query("
     SELECT id, tg_message_id, channel_id, media_type
     FROM tg_posts
     WHERE media_file_id IS NULL
-      AND media_url IS NOT NULL
-      AND media_url NOT LIKE 'http%'
+      AND media_type != 'none'
+      AND (
+          (media_url IS NOT NULL AND media_url NOT LIKE 'http%')
+          OR media_url IS NULL
+      )
     ORDER BY id ASC
     LIMIT 10000
 ")->fetchAll();
