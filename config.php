@@ -26,3 +26,6 @@ define('POSTS_PER_PAGE', (int)(getenv('POSTS_PER_PAGE') ?: 20));
 
 define('UPLOADS_DIR', getenv('UPLOADS_DIR') ?: __DIR__ . '/uploads');
 define('UPLOADS_URL', getenv('UPLOADS_URL') ?: '/uploads');
+
+// Базовый URL сайта (пустой если сайт в корне, '/tgLenta' для локального MAMP)
+define('BASE_URL', getenv('BASE_URL') ?: '');

@@ -144,11 +144,9 @@ function extractMedia(array $msg): array {
 
 function localMediaUrl(string $path): ?string {
     if (!$path) return null;
-    // Telegram Desktop сохраняет медиа относительно result.json
-    // Перекладываем их в uploads/ или ссылаемся напрямую
     $full = __DIR__ . '/' . ltrim($path, './');
     if (file_exists($full)) {
-        return '/tgLenta/' . ltrim($path, './');
+        return BASE_URL . '/' . ltrim($path, './');
     }
     return null;
 }
