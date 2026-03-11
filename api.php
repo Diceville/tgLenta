@@ -9,12 +9,48 @@ header('Access-Control-Allow-Origin: *');
 $page    = max(1, (int)($_GET['page'] ?? 1));
 $limit   = min(50, max(1, (int)($_GET['limit'] ?? POSTS_PER_PAGE)));
 $sinceId = isset($_GET['since_id']) ? (int)$_GET['since_id'] : null;
+$search  = isset($_GET['search']) ? trim($_GET['search']) : null;
 $offset  = ($page - 1) * $limit;
 
 $pdo = db();
 
 try {
-    if ($sinceId !== null) {
+    if ($search !== null && $search !== '') {
+        // Режим поиска
+        $like = '%' . $search . '%';
+
+        $countStmt = $pdo->prepare("
+            SELECT COUNT(*) FROM tg_posts
+            WHERE text LIKE :q
+              AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
+        ");
+        $countStmt->execute([':q' => $like]);
+        $total = (int)$countStmt->fetchColumn();
+
+        $stmt = $pdo->prepare("
+            SELECT id, tg_message_id, channel_id, text, media_type, media_file_id,
+                   media_url, thumb_url, post_date
+            FROM tg_posts
+            WHERE text LIKE :q
+              AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
+            ORDER BY post_date DESC
+            LIMIT :limit OFFSET :offset
+        ");
+        $stmt->bindValue(':q',      $like,   PDO::PARAM_STR);
+        $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $posts = $stmt->fetchAll();
+
+        echo json_encode([
+            'posts'    => groupAlbums(formatPosts($posts)),
+            'page'     => $page,
+            'total'    => $total,
+            'has_more' => ($offset + $limit) < $total,
+            'search'   => $search,
+        ], JSON_UNESCAPED_UNICODE);
+
+    } elseif ($sinceId !== null) {
         // Режим polling: только новые посты
         $stmt = $pdo->prepare("
             SELECT id, tg_message_id, channel_id, text, media_type, media_file_id,
@@ -109,14 +145,12 @@ function groupAlbums(array $posts): array {
     while ($i < $n) {
         $p = $posts[$i];
 
-        // Группируем только фото с URL
         if ($p['media_type'] !== 'photo' || !$p['media_url']) {
             $result[] = $p;
             $i++;
             continue;
         }
 
-        // Собираем подряд идущие фото с той же датой
         $group = [$p];
         $j = $i + 1;
         while ($j < $n
@@ -128,14 +162,11 @@ function groupAlbums(array $posts): array {
         }
 
         if (count($group) === 1) {
-            // Одиночное фото — media_files с одним элементом для лайтбокса
             $p['media_files'] = [$p['media_url']];
             $result[] = $p;
         } else {
-            // Альбом — объединяем
             $merged = $group[0];
             $merged['media_files'] = array_map(fn($gp) => $gp['media_url'], $group);
-            // Берём подпись из любого поста группы
             $merged['text'] = null;
             foreach ($group as $gp) {
                 if (!empty($gp['text'])) {

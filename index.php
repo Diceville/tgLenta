@@ -18,6 +18,9 @@
                     <span class="channel-label">Telegram-канал</span>
                 </div>
             </div>
+            <div class="search-wrap">
+                <input type="search" id="searchInput" class="search-input" placeholder="Поиск...">
+            </div>
             <div class="sync-status" id="syncStatus"></div>
         </div>
     </header>

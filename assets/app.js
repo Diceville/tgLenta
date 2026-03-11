@@ -13,12 +13,14 @@ const loadMoreBtn  = document.getElementById('loadMoreBtn');
 const syncStatus   = document.getElementById('syncStatus');
 const channelName  = document.getElementById('channelName');
 const sentinel     = document.getElementById('sentinel');
+const searchInput  = document.getElementById('searchInput');
 
-let currentPage  = 1;
-let hasMore      = false;
-let isLoading    = false;
-let latestTgId   = 0;
-let pollTimer    = null;
+let currentPage   = 1;
+let hasMore       = false;
+let isLoading     = false;
+let latestTgId    = 0;
+let pollTimer     = null;
+let currentSearch = '';
 
 // ─── Утилиты ──────────────────────────────────────────────────────────────────
 
@@ -258,7 +260,8 @@ async function fetchPosts(page = 1) {
     }
 
     try {
-        const res  = await fetch(`${API_URL}?page=${page}&limit=20`);
+        const params = `page=${page}&limit=20` + (currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : '');
+        const res  = await fetch(`${API_URL}?${params}`);
         const data = await res.json();
 
         if (page === 1) {
@@ -347,6 +350,30 @@ const observer = new IntersectionObserver(entries => {
 }, { rootMargin: '200px' });
 
 observer.observe(sentinel);
+
+// ─── Поиск ────────────────────────────────────────────────────────────────────
+
+let searchTimer = null;
+
+searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        const q = searchInput.value.trim();
+        if (q === currentSearch) return;
+        currentSearch = q;
+
+        // В режиме поиска останавливаем polling
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+
+        fetchPosts(1).then(() => {
+            // Возобновляем polling только вне поиска
+            if (!currentSearch) {
+                pollNew();
+                pollTimer = setInterval(pollNew, SYNC_INTERVAL);
+            }
+        });
+    }, 400);
+});
 
 // ─── Запуск ───────────────────────────────────────────────────────────────────
 
