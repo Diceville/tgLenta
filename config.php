@@ -13,11 +13,12 @@ define('TELEGRAM_API_BASE',  'https://api.telegram.org/bot' . BOT_TOKEN);
 define('TELEGRAM_FILE_BASE', 'https://api.telegram.org/file/bot' . BOT_TOKEN);
 
 // ─── База данных ──────────────────────────────────────────────────────────────
-define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
-define('DB_PORT', getenv('DB_PORT') ?: '3306');
-define('DB_NAME', getenv('DB_NAME') ?: 'tglenta');
-define('DB_USER', getenv('DB_USER') ?: 'root');
-define('DB_PASS', getenv('DB_PASS') ?: '');
+// Поддержка как Railway-переменных (MYSQLHOST и т.д.), так и кастомных (DB_HOST)
+define('DB_HOST', getenv('DB_HOST') ?: getenv('MYSQLHOST')     ?: '127.0.0.1');
+define('DB_PORT', getenv('DB_PORT') ?: getenv('MYSQLPORT')     ?: '3306');
+define('DB_NAME', getenv('DB_NAME') ?: getenv('MYSQLDATABASE') ?: 'tglenta');
+define('DB_USER', getenv('DB_USER') ?: getenv('MYSQLUSER')     ?: 'root');
+define('DB_PASS', getenv('DB_PASS') ?: getenv('MYSQLPASSWORD') ?: '');
 
 // ─── Настройки приложения ─────────────────────────────────────────────────────
 define('SYNC_INTERVAL',  (int)(getenv('SYNC_INTERVAL')  ?: 60));
