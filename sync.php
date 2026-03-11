@@ -163,21 +163,9 @@ foreach ($updates as $update) {
 
     [$mediaType, $mediaFileId, $thumbFileId] = extractMedia($msg);
 
-    // Скачиваем медиафайл локально
-    $mediaUrl = null;
-    $thumbUrl = null;
-
-    if ($mediaFileId) {
-        $mediaUrl = downloadMedia($mediaFileId);
-        if (!$mediaUrl) {
-            // Fallback: сохраняем только file_id, URL сгенерируем позже
-            $errors[] = "Failed to download media for message $messageId";
-        }
-    }
-
-    if ($thumbFileId) {
-        $thumbUrl = downloadMedia($thumbFileId);
-    }
+    // Не скачиваем файлы — отдаём через media.php по file_id
+    $mediaUrl = $mediaFileId ? null : null;
+    $thumbUrl = $thumbFileId ? null : null;
 
     try {
         $insertStmt->execute([

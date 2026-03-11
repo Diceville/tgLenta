@@ -75,7 +75,7 @@ function formatPosts(array $posts): array {
     return array_map(function (array $post): array {
         $mediaUrl = $post['media_url'];
         if (!$mediaUrl && $post['media_file_id']) {
-            $mediaUrl = '/tgLenta/media.php?file_id=' . urlencode($post['media_file_id']);
+            $mediaUrl = BASE_URL . '/media.php?file_id=' . urlencode($post['media_file_id']);
         }
 
         $thumbUrl = $post['thumb_url'];
