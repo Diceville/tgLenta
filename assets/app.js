@@ -202,9 +202,7 @@ function renderPost(post) {
         video.controls  = true;
         video.preload   = 'none';
         if (post.thumb_url) video.poster = post.thumb_url;
-        const src = document.createElement('source');
-        src.src = post.media_url;
-        video.appendChild(src);
+        video.src = post.media_url;
         mediaEl = video;
 
     } else if (post.media_type === 'animation' && post.media_url) {
@@ -214,9 +212,7 @@ function renderPost(post) {
         video.loop      = true;
         video.muted     = true;
         video.playsInline = true;
-        const src = document.createElement('source');
-        src.src = post.media_url;
-        video.appendChild(src);
+        video.src = post.media_url;
         mediaEl = video;
 
     } else if (post.media_type !== 'none') {
