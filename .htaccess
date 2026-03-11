@@ -1,0 +1,15 @@
+RewriteEngine On
+
+# Запрещаем прямой доступ к чувствительным файлам
+<FilesMatch "^(config|db)\.php$">
+    Require all denied
+</FilesMatch>
+
+# Запрещаем листинг директорий
+Options -Indexes
+
+# Разрешаем PHP-файлы только с корректными заголовками
+<Files "sync.php">
+    # Доступен только локально (раскомментировать для продакшена)
+    # Require ip 127.0.0.1
+</Files>

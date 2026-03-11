@@ -1,0 +1,16 @@
+# Конфигурация с секретами
+config.php
+
+# Загруженные медиафайлы
+uploads/
+
+# Экспорт из Telegram Desktop
+photos/
+result.json
+
+# Системные файлы
+.DS_Store
+.claude/
+
+# Lock-файлы синхронизации
+/tmp/tglenta_sync.lock
