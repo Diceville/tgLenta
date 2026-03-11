@@ -203,6 +203,17 @@ function renderPost(post) {
         video.preload   = 'none';
         if (post.thumb_url) video.poster = post.thumb_url;
         video.src = post.media_url;
+        video.addEventListener('error', () => {
+            const wrap = document.createElement('div');
+            wrap.className = 'post-media post-media-unavailable';
+            const a = document.createElement('a');
+            a.href = post.tg_link;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.textContent = 'Смотреть в Telegram →';
+            wrap.appendChild(a);
+            video.replaceWith(wrap);
+        });
         mediaEl = video;
 
     } else if (post.media_type === 'animation' && post.media_url) {

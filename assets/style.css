@@ -170,6 +170,24 @@ video.post-media {
     font-size: 14px;
 }
 
+.post-media-unavailable {
+    height: 120px;
+    background: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.post-media-unavailable a {
+    color: #5aabf5;
+    font-size: 15px;
+    text-decoration: none;
+}
+
+.post-media-unavailable a:hover {
+    text-decoration: underline;
+}
+
 .post-body {
     padding: 14px 16px 16px;
 }

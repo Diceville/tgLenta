@@ -37,8 +37,10 @@ curl_close($ch);
 
 $data = json_decode($resp, true);
 if (!$data || !$data['ok'] || empty($data['result']['file_path'])) {
+    $desc = $data['description'] ?? 'no response';
+    error_log("media.php getFile failed for file_id=$fileId: $desc");
     http_response_code(404);
-    exit('File not found');
+    exit('File not found: ' . $desc);
 }
 
 $fileUrl = TELEGRAM_FILE_BASE . '/' . $data['result']['file_path'];
