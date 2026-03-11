@@ -409,6 +409,17 @@ searchInput.addEventListener('input', () => {
     }, 400);
 });
 
+// ─── Аватар канала ────────────────────────────────────────────────────────────
+
+(function loadAvatar() {
+    const el = document.getElementById('channelAvatar');
+    if (!el) return;
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = 'avatar.php';
+    img.addEventListener('load',  () => el.replaceChildren(img));
+})();
+
 // ─── Запуск ───────────────────────────────────────────────────────────────────
 
 fetchPosts(1).then(() => {
