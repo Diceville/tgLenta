@@ -3,7 +3,8 @@
 /**
  * Прокси для медиафайлов Telegram.
  * Использование: /media.php?file_id=XXX
- * Получает файл с серверов Telegram и отдаёт браузеру.
+ * Получает файл с серверов Telegram и стримит браузеру без сохранения на диск.
+ * Запросы к Telegram идут через SOCKS5-прокси (если задан SOCKS5_PROXY).
  */
 
 require_once __DIR__ . '/config.php';
@@ -14,21 +15,19 @@ if (!$fileId) {
     exit('Missing file_id');
 }
 
-// Кэш на диске — не скачиваем повторно
-$cacheDir  = __DIR__ . '/uploads/cache';
-$cachePath = $cacheDir . '/' . preg_replace('/[^a-zA-Z0-9_\-]/', '_', $fileId);
-
-if (file_exists($cachePath)) {
-    $mime = mime_content_type($cachePath) ?: 'application/octet-stream';
-    header('Content-Type: ' . $mime);
-    header('Cache-Control: public, max-age=86400');
-    readfile($cachePath);
-    exit;
+// Опции прокси — добавляются к запросам только если прокси настроен
+$proxyOpts = [];
+if (SOCKS5_PROXY) {
+    $proxyOpts = [
+        CURLOPT_PROXY        => SOCKS5_PROXY,
+        CURLOPT_PROXYTYPE    => CURLPROXY_SOCKS5,
+        CURLOPT_PROXYUSERPWD => SOCKS5_AUTH,
+    ];
 }
 
 // Получаем путь к файлу через Telegram API
 $ch = curl_init(TELEGRAM_API_BASE . '/getFile?file_id=' . urlencode($fileId));
-curl_setopt_array($ch, [
+curl_setopt_array($ch, $proxyOpts + [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_TIMEOUT        => 10,
     CURLOPT_SSL_VERIFYPEER => true,
@@ -44,28 +43,45 @@ if (!$data || !$data['ok'] || empty($data['result']['file_path'])) {
 
 $fileUrl = TELEGRAM_FILE_BASE . '/' . $data['result']['file_path'];
 
-// Скачиваем файл
+// Пробрасываем Range-заголовок браузера (нужен для перемотки видео)
+$requestHeaders = [];
+if (!empty($_SERVER['HTTP_RANGE'])) {
+    $requestHeaders[] = 'Range: ' . $_SERVER['HTTP_RANGE'];
+}
+
+header('Cache-Control: public, max-age=86400');
+
 $ch = curl_init($fileUrl);
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
+curl_setopt_array($ch, $proxyOpts + [
     CURLOPT_FOLLOWLOCATION => true,
     CURLOPT_TIMEOUT        => 30,
     CURLOPT_SSL_VERIFYPEER => true,
+    CURLOPT_HTTPHEADER     => $requestHeaders,
+    CURLOPT_HEADERFUNCTION => function ($ch, $header) {
+        $trimmed = trim($header);
+        // Устанавливаем код ответа (200 или 206 Partial Content)
+        if (preg_match('#^HTTP/\S+\s+(\d+)#', $trimmed, $m)) {
+            http_response_code((int)$m[1]);
+            return strlen($header);
+        }
+        // Пробрасываем нужные заголовки браузеру
+        $lower = strtolower($header);
+        if (str_starts_with($lower, 'content-type:')   ||
+            str_starts_with($lower, 'content-length:') ||
+            str_starts_with($lower, 'content-range:')  ||
+            str_starts_with($lower, 'accept-ranges:')) {
+            header($trimmed);
+        }
+        return strlen($header);
+    },
+    CURLOPT_WRITEFUNCTION  => function ($ch, $chunk) {
+        echo $chunk;
+        return strlen($chunk);
+    },
 ]);
-$fileData = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
 
-if (!$fileData || $httpCode !== 200) {
+if (!curl_exec($ch)) {
     http_response_code(502);
     exit('Failed to fetch file');
 }
-
-// Сохраняем в кэш
-if (!is_dir($cacheDir)) mkdir($cacheDir, 0755, true);
-file_put_contents($cachePath, $fileData);
-
-$mime = mime_content_type($cachePath) ?: 'application/octet-stream';
-header('Content-Type: ' . $mime);
-header('Cache-Control: public, max-age=86400');
-echo $fileData;
+curl_close($ch);

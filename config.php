@@ -31,3 +31,9 @@ define('UPLOADS_URL', getenv('UPLOADS_URL') ?: '/uploads');
 
 // Базовый URL сайта (пустой если сайт в корне, '/tgLenta' для локального MAMP)
 define('BASE_URL', getenv('BASE_URL') ?: '');
+
+// ─── SOCKS5-прокси для запросов к Telegram ────────────────────────────────────
+// Формат SOCKS5_PROXY: host:port  Формат SOCKS5_AUTH: user:password
+// Оставьте пустыми если прокси не нужен (например, локальная разработка)
+define('SOCKS5_PROXY', getenv('SOCKS5_PROXY') ?: '');
+define('SOCKS5_AUTH',  getenv('SOCKS5_AUTH')  ?: '');

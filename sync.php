@@ -17,14 +17,21 @@ header('Content-Type: application/json');
 function tgRequest(string $method, array $params = []): ?array {
     $url = TELEGRAM_API_BASE . '/' . $method;
     $ch = curl_init($url);
-    curl_setopt_array($ch, [
+
+    $opts = [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => json_encode($params),
         CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
         CURLOPT_TIMEOUT        => 30,
         CURLOPT_SSL_VERIFYPEER => true,
-    ]);
+    ];
+    if (SOCKS5_PROXY) {
+        $opts[CURLOPT_PROXY]        = SOCKS5_PROXY;
+        $opts[CURLOPT_PROXYTYPE]    = CURLPROXY_SOCKS5;
+        $opts[CURLOPT_PROXYUSERPWD] = SOCKS5_AUTH;
+    }
+    curl_setopt_array($ch, $opts);
     $response = curl_exec($ch);
     $error    = curl_error($ch);
     curl_close($ch);
