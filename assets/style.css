@@ -197,9 +197,21 @@ video.post-media {
     color: var(--text-muted);
 }
 
+.post-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.post-views {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
 .post-link {
     font-size: 12px;
     color: var(--accent);
+    white-space: nowrap;
 }
 
 /* Пост только с текстом — чуть больший паддинг сверху */

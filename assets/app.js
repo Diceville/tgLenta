@@ -38,6 +38,12 @@ function formatDate(dateStr) {
         + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 }
 
+function formatViews(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0', '') + 'M';
+    if (n >= 1000)    return (n / 1000).toFixed(1).replace('.0', '') + 'K';
+    return n.toString();
+}
+
 function linkify(text) {
     if (!text) return '';
     const safe = text
@@ -232,11 +238,32 @@ function renderPost(post) {
     }
     const footer = document.createElement('div');
     footer.className = 'post-footer';
+
     const time = document.createElement('time');
     time.className   = 'post-date';
     time.dateTime    = post.date;
     time.textContent = formatDate(post.date);
     footer.appendChild(time);
+
+    const footerRight = document.createElement('div');
+    footerRight.className = 'post-footer-right';
+
+    if (post.views) {
+        const views = document.createElement('span');
+        views.className   = 'post-views';
+        views.textContent = '👁 ' + formatViews(post.views);
+        footerRight.appendChild(views);
+    }
+
+    const link = document.createElement('a');
+    link.className = 'post-link';
+    link.href      = post.tg_link;
+    link.target    = '_blank';
+    link.rel       = 'noopener noreferrer';
+    link.textContent = 'Открыть в Telegram';
+    footerRight.appendChild(link);
+
+    footer.appendChild(footerRight);
     body.appendChild(footer);
     article.appendChild(body);
 

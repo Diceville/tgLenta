@@ -136,9 +136,9 @@ $maxUpdate = $lastUpdateId;
 
 $insertStmt = $pdo->prepare("
     INSERT IGNORE INTO tg_posts
-        (tg_message_id, channel_id, text, media_type, media_file_id, media_url, thumb_url, post_date)
+        (tg_message_id, channel_id, text, media_type, media_file_id, media_url, thumb_url, post_date, views)
     VALUES
-        (:tg_message_id, :channel_id, :text, :media_type, :media_file_id, :media_url, :thumb_url, :post_date)
+        (:tg_message_id, :channel_id, :text, :media_type, :media_file_id, :media_url, :thumb_url, :post_date, :views)
 ");
 
 foreach ($updates as $update) {
@@ -160,12 +160,13 @@ foreach ($updates as $update) {
     $channelId = $msg['chat']['id'];
     $messageId = (int)$msg['message_id'];
     $postDate  = date('Y-m-d H:i:s', $msg['date']);
+    $views     = isset($msg['views']) ? (int)$msg['views'] : null;
 
     [$mediaType, $mediaFileId, $thumbFileId] = extractMedia($msg);
 
     // Не скачиваем файлы — отдаём через media.php по file_id
-    $mediaUrl = $mediaFileId ? null : null;
-    $thumbUrl = $thumbFileId ? null : null;
+    $mediaUrl = null;
+    $thumbUrl = null;
 
     try {
         $insertStmt->execute([
@@ -177,6 +178,7 @@ foreach ($updates as $update) {
             ':media_url'     => $mediaUrl,
             ':thumb_url'     => $thumbUrl,
             ':post_date'     => $postDate,
+            ':views'         => $views,
         ]);
         if ($insertStmt->rowCount() > 0) {
             $synced++;

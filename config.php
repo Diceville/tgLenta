@@ -6,8 +6,10 @@ if (file_exists(__DIR__ . '/config.local.php')) {
 }
 
 // ─── Telegram Bot API ─────────────────────────────────────────────────────────
-define('BOT_TOKEN',        getenv('BOT_TOKEN')        ?: '');
-define('CHANNEL_USERNAME', getenv('CHANNEL_USERNAME') ?: '');
+define('BOT_TOKEN',            getenv('BOT_TOKEN')            ?: '');
+define('CHANNEL_USERNAME',     getenv('CHANNEL_USERNAME')     ?: '');
+// @username канала без @ (для ссылок на посты). Оставьте пустым для приватных каналов.
+define('CHANNEL_TG_USERNAME',  getenv('CHANNEL_TG_USERNAME')  ?: '');
 
 define('TELEGRAM_API_BASE',  'https://api.telegram.org/bot' . BOT_TOKEN);
 define('TELEGRAM_FILE_BASE', 'https://api.telegram.org/file/bot' . BOT_TOKEN);

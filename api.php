@@ -29,7 +29,7 @@ try {
 
         $stmt = $pdo->prepare("
             SELECT id, tg_message_id, channel_id, text, media_type, media_file_id,
-                   media_url, thumb_url, post_date
+                   media_url, thumb_url, post_date, views
             FROM tg_posts
             WHERE text LIKE :q
               AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
@@ -54,7 +54,7 @@ try {
         // Режим polling: только новые посты
         $stmt = $pdo->prepare("
             SELECT id, tg_message_id, channel_id, text, media_type, media_file_id,
-                   media_url, thumb_url, post_date
+                   media_url, thumb_url, post_date, views
             FROM tg_posts
             WHERE tg_message_id > :since_id
               AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
@@ -81,7 +81,7 @@ try {
 
         $stmt = $pdo->prepare("
             SELECT id, tg_message_id, channel_id, text, media_type, media_file_id,
-                   media_url, thumb_url, post_date
+                   media_url, thumb_url, post_date, views
             FROM tg_posts
             WHERE NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
             ORDER BY post_date DESC
@@ -119,9 +119,20 @@ function formatPosts(array $posts): array {
             $thumbUrl = null;
         }
 
+        // Ссылка на пост в Telegram
+        $msgId = (int)$post['tg_message_id'];
+        if (CHANNEL_TG_USERNAME) {
+            $tgLink = 'https://t.me/' . CHANNEL_TG_USERNAME . '/' . $msgId;
+        } else {
+            // Приватный канал: убираем -100 из channel_id
+            $chanId = ltrim((string)$post['channel_id'], '-');
+            if (str_starts_with($chanId, '100')) $chanId = substr($chanId, 3);
+            $tgLink = 'https://t.me/c/' . $chanId . '/' . $msgId;
+        }
+
         return [
             'id'          => (int)$post['id'],
-            'tg_id'       => (int)$post['tg_message_id'],
+            'tg_id'       => $msgId,
             'text'        => $post['text'],
             'media_type'  => $post['media_type'],
             'media_url'   => $mediaUrl,
@@ -129,6 +140,8 @@ function formatPosts(array $posts): array {
             'thumb_url'   => $thumbUrl,
             'date'        => $post['post_date'],
             'timestamp'   => strtotime($post['post_date']),
+            'views'       => isset($post['views']) ? (int)$post['views'] : null,
+            'tg_link'     => $tgLink,
         ];
     }, $posts);
 }

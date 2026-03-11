@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS tg_posts (
     media_url     VARCHAR(500),
     thumb_url     VARCHAR(500),
     post_date     DATETIME NOT NULL,
+    views         INT UNSIGNED DEFAULT NULL,
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_post_date (post_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
