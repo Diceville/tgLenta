@@ -560,6 +560,8 @@ img.post-media { cursor: zoom-in; }
     stroke-linejoin: round;
 }
 
+.comments-section[hidden] { display: none; }
+
 .comments-section {
     border-top: 1px solid var(--border);
     padding: 12px 16px;

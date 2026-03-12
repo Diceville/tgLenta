@@ -292,8 +292,8 @@ function renderPost(post) {
             readMore.className = 'read-more-btn';
             readMore.textContent = 'Читать далее';
             readMore.addEventListener('click', () => {
-                textDiv.classList.remove('collapsed');
-                readMore.remove();
+                const collapsed = textDiv.classList.toggle('collapsed');
+                readMore.textContent = collapsed ? 'Читать далее' : 'Свернуть';
             });
             body.appendChild(readMore);
         }
