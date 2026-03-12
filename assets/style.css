@@ -228,6 +228,35 @@ video.post-media {
     word-break: break-word;
 }
 
+.post-text.collapsed {
+    max-height: 200px;
+    overflow: hidden;
+    position: relative;
+}
+
+.post-text.collapsed::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: linear-gradient(transparent, var(--surface));
+    pointer-events: none;
+}
+
+.read-more-btn {
+    background: none;
+    border: none;
+    padding: 6px 0 0;
+    font-size: 14px;
+    color: var(--accent);
+    cursor: pointer;
+    display: block;
+}
+
+.read-more-btn:hover { text-decoration: underline; }
+
 .post-text a {
     color: var(--accent);
 }
@@ -519,6 +548,7 @@ img.post-media { cursor: zoom-in; }
 }
 
 .post-comments-btn:hover { color: var(--accent); }
+.post-comments-btn.active { color: var(--accent); }
 
 .post-comments-btn svg {
     width: 14px;

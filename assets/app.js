@@ -285,6 +285,18 @@ function renderPost(post) {
             el.addEventListener('click', () => el.classList.toggle('revealed'));
         });
         body.appendChild(textDiv);
+
+        if (post.text.length > 500) {
+            textDiv.classList.add('collapsed');
+            const readMore = document.createElement('button');
+            readMore.className = 'read-more-btn';
+            readMore.textContent = 'Читать далее';
+            readMore.addEventListener('click', () => {
+                textDiv.classList.remove('collapsed');
+                readMore.remove();
+            });
+            body.appendChild(readMore);
+        }
     }
     const footer = document.createElement('div');
     footer.className = 'post-footer';
@@ -320,9 +332,11 @@ function renderPost(post) {
                 article.appendChild(section);
                 loaded = true;
                 loadComments(post.id, section);
+                commentsBtn.classList.add('active');
                 return;
             }
             section.hidden = !section.hidden;
+            commentsBtn.classList.toggle('active', !section.hidden);
         });
 
         footerRight.insertBefore(commentsBtn, footerRight.firstChild);
