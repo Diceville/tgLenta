@@ -14,6 +14,10 @@ $offset  = ($page - 1) * $limit;
 
 $pdo = db();
 
+// Фильтр по каналу: если CHANNEL_ID задан — показываем только его посты
+$channelId     = CHANNEL_ID;
+$channelFilter = $channelId ? 'AND channel_id = :channel_id' : '';
+
 try {
     if ($search !== null && $search !== '') {
         // Режим поиска
@@ -22,9 +26,12 @@ try {
         $countStmt = $pdo->prepare("
             SELECT COUNT(*) FROM tg_posts
             WHERE text LIKE :q
+              $channelFilter
               AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
         ");
-        $countStmt->execute([':q' => $like]);
+        $countParams = [':q' => $like];
+        if ($channelId) $countParams[':channel_id'] = $channelId;
+        $countStmt->execute($countParams);
         $total = (int)$countStmt->fetchColumn();
 
         $stmt = $pdo->prepare("
@@ -32,11 +39,13 @@ try {
                    media_url, thumb_url, post_date, views
             FROM tg_posts
             WHERE text LIKE :q
+              $channelFilter
               AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
             ORDER BY post_date DESC
             LIMIT :limit OFFSET :offset
         ");
         $stmt->bindValue(':q',      $like,   PDO::PARAM_STR);
+        if ($channelId) $stmt->bindValue(':channel_id', $channelId, PDO::PARAM_INT);
         $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -57,11 +66,13 @@ try {
                    media_url, thumb_url, post_date, views
             FROM tg_posts
             WHERE tg_message_id > :since_id
+              $channelFilter
               AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
             ORDER BY post_date DESC
             LIMIT :limit
         ");
         $stmt->bindValue(':since_id', $sinceId, PDO::PARAM_INT);
+        if ($channelId) $stmt->bindValue(':channel_id', $channelId, PDO::PARAM_INT);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
         $posts = $stmt->fetchAll();
@@ -74,19 +85,27 @@ try {
 
     } else {
         // Режим пагинации
-        $total = (int)$pdo->query("
+        $countStmt = $pdo->prepare("
             SELECT COUNT(*) FROM tg_posts
-            WHERE NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
-        ")->fetchColumn();
+            WHERE 1=1
+              $channelFilter
+              AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
+        ");
+        if ($channelId) $countStmt->execute([':channel_id' => $channelId]);
+        else $countStmt->execute();
+        $total = (int)$countStmt->fetchColumn();
 
         $stmt = $pdo->prepare("
             SELECT id, tg_message_id, channel_id, text, media_type, media_file_id,
                    media_url, thumb_url, post_date, views
             FROM tg_posts
-            WHERE NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
+            WHERE 1=1
+              $channelFilter
+              AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
             ORDER BY post_date DESC
             LIMIT :limit OFFSET :offset
         ");
+        if ($channelId) $stmt->bindValue(':channel_id', $channelId, PDO::PARAM_INT);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();

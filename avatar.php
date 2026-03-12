@@ -6,9 +6,8 @@
  */
 
 require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/db.php';
 
-$cacheFile = sys_get_temp_dir() . '/tglenta_avatar_file_id.txt';
+$cacheFile = sys_get_temp_dir() . '/tglenta_avatar_' . abs(CHANNEL_ID) . '.txt';
 $cacheTtl  = 3600; // секунд
 
 // Читаем file_id из кеша
@@ -18,16 +17,15 @@ if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTtl) {
 }
 
 if (!$fileId) {
-    // Получаем channel_id из БД
-    $pdo = db();
-    $channelId = $pdo->query("SELECT channel_id FROM tg_posts ORDER BY id LIMIT 1")->fetchColumn();
-
-    // Bot API требует -100XXXXXXXXXX
-    if ($channelId > 0) {
-        $channelId = '-100' . $channelId;
+    // Определяем chat_id для getChat
+    if (CHANNEL_TG_USERNAME) {
+        $chatIdParam = '@' . CHANNEL_TG_USERNAME;
+    } elseif (CHANNEL_ID) {
+        $chatIdParam = CHANNEL_ID;
+    } else {
+        http_response_code(404);
+        exit('CHANNEL_ID not configured');
     }
-
-    $chatIdParam = CHANNEL_TG_USERNAME ? ('@' . CHANNEL_TG_USERNAME) : $channelId;
 
     $proxyOpts = [];
     if (SOCKS5_PROXY) {
@@ -60,5 +58,4 @@ if (!$fileId) {
     exit('Avatar not available');
 }
 
-// Перенаправляем на media.php, который уже умеет проксировать
 header('Location: ' . BASE_URL . '/media.php?file_id=' . urlencode($fileId));

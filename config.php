@@ -10,6 +10,9 @@ define('BOT_TOKEN',            getenv('BOT_TOKEN')            ?: '');
 define('CHANNEL_USERNAME',     getenv('CHANNEL_USERNAME')     ?: '');
 // @username канала без @ (для ссылок на посты). Оставьте пустым для приватных каналов.
 define('CHANNEL_TG_USERNAME',  getenv('CHANNEL_TG_USERNAME')  ?: '');
+// Числовой Telegram ID канала (channel_id из tg_posts). Используется для фильтрации
+// постов в БД — позволяет хранить несколько каналов в одной базе данных.
+define('CHANNEL_ID',           (int)(getenv('CHANNEL_ID')     ?: 0));
 
 define('TELEGRAM_API_BASE',  'https://api.telegram.org/bot' . BOT_TOKEN);
 define('TELEGRAM_FILE_BASE', 'https://api.telegram.org/file/bot' . BOT_TOKEN);

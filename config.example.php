@@ -24,6 +24,12 @@ putenv('CHANNEL_USERNAME=Название канала');
 // Для приватного канала — оставьте пустым
 putenv('CHANNEL_TG_USERNAME=');
 
+// Числовой Telegram ID канала — используется для фильтрации постов в БД.
+// Позволяет держать несколько каналов в одной базе данных.
+// Узнать: SELECT DISTINCT channel_id FROM tg_posts;
+// Формат: отрицательное число, например -1001665934953
+putenv('CHANNEL_ID=-100XXXXXXXXXX');
+
 // ─── База данных (MySQL/MariaDB) ───────────────────────────────────────────────
 putenv('DB_HOST=localhost');
 putenv('DB_PORT=3306');

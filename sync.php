@@ -118,9 +118,11 @@ function extractMedia(array $msg): array {
 
 $pdo = db();
 
-// Читаем последний обработанный update_id
-$stmt = $pdo->prepare("SELECT `value` FROM tg_state WHERE `key` = 'last_update_id'");
-$stmt->execute();
+$channelId = CHANNEL_ID;
+
+// Читаем последний обработанный update_id для этого канала
+$stmt = $pdo->prepare("SELECT `value` FROM tg_state WHERE channel_id = ? AND `key` = 'last_update_id'");
+$stmt->execute([$channelId]);
 $lastUpdateId = (int)($stmt->fetchColumn() ?? 0);
 
 // Запрашиваем новые обновления
@@ -164,7 +166,9 @@ foreach ($updates as $update) {
     }
 
     $text      = $msg['text'] ?? $msg['caption'] ?? null;
-    $channelId = $msg['chat']['id'];
+    $msgChannelId = $msg['chat']['id'];
+    // Пропускаем посты не из нашего канала (если бот добавлен в несколько каналов)
+    if ($channelId && $msgChannelId !== $channelId) continue;
     $messageId = (int)$msg['message_id'];
     $postDate  = date('Y-m-d H:i:s', $msg['date']);
     $views     = isset($msg['views']) ? (int)$msg['views'] : null;
@@ -178,7 +182,7 @@ foreach ($updates as $update) {
     try {
         $insertStmt->execute([
             ':tg_message_id' => $messageId,
-            ':channel_id'    => $channelId,
+            ':channel_id'    => $msgChannelId,
             ':text'          => $text,
             ':media_type'    => $mediaType,
             ':media_file_id' => $mediaFileId,
@@ -195,10 +199,12 @@ foreach ($updates as $update) {
     }
 }
 
-// Сохраняем новый offset
+// Сохраняем новый offset для этого канала
 if ($maxUpdate > $lastUpdateId) {
-    $pdo->prepare("UPDATE tg_state SET `value` = ? WHERE `key` = 'last_update_id'")
-        ->execute([$maxUpdate]);
+    $pdo->prepare("
+        INSERT INTO tg_state (channel_id, `key`, `value`) VALUES (?, 'last_update_id', ?)
+        ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)
+    ")->execute([$channelId, $maxUpdate]);
 }
 
 flock($lock, LOCK_UN);
