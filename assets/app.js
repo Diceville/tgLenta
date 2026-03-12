@@ -318,13 +318,11 @@ function renderPost(post) {
                 section = document.createElement('div');
                 section.className = 'comments-section';
                 article.appendChild(section);
+                loaded = true;
+                loadComments(post.id, section);
+                return;
             }
-            if (section.hidden) {
-                section.hidden = false;
-                if (!loaded) { loaded = true; loadComments(post.id, section); }
-            } else {
-                section.hidden = true;
-            }
+            section.hidden = !section.hidden;
         });
 
         footerRight.insertBefore(commentsBtn, footerRight.firstChild);
