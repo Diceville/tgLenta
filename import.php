@@ -36,9 +36,9 @@ $pdo = db();
 
 $insertStmt = $pdo->prepare("
     INSERT IGNORE INTO tg_posts
-        (tg_message_id, channel_id, text, media_type, media_file_id, media_url, thumb_url, post_date)
+        (tg_message_id, channel_id, text, media_type, media_file_id, media_url, thumb_url, post_date, entities)
     VALUES
-        (:tg_message_id, :channel_id, :text, :media_type, :media_file_id, :media_url, :thumb_url, :post_date)
+        (:tg_message_id, :channel_id, :text, :media_type, :media_file_id, :media_url, :thumb_url, :post_date, :entities)
 ");
 
 $imported = 0;
@@ -57,8 +57,8 @@ foreach ($messages as $msg) {
     // Дата
     $postDate = date('Y-m-d H:i:s', strtotime($msg['date'] ?? 'now'));
 
-    // Текст: может быть строкой или массивом сущностей
-    $text = extractText($msg['text'] ?? '');
+    // Текст и entities: Desktop-формат — массив сегментов
+    [$text, $entities] = extractTextAndEntities($msg['text'] ?? '');
 
     // Медиа
     [$mediaType, $mediaUrl, $thumbUrl] = extractMedia($msg);
@@ -73,6 +73,7 @@ foreach ($messages as $msg) {
             ':media_url'     => $mediaUrl,
             ':thumb_url'     => $thumbUrl,
             ':post_date'     => $postDate,
+            ':entities'      => $entities,
         ]);
 
         if ($insertStmt->rowCount() > 0) {
@@ -93,19 +94,71 @@ echo "<a href='index.html'>Открыть ленту →</a>";
 
 // ─── Вспомогательные функции ──────────────────────────────────────────────────
 
-function extractText(mixed $text): string {
-    if (is_string($text)) {
-        return $text;
+/**
+ * Извлекает текст и entities из Desktop-формата.
+ * Desktop хранит текст как строку или массив сегментов вида:
+ *   ["plain text", {"type":"bold","text":"bold"}, {"type":"link","text":"click","href":"..."}]
+ * Конвертирует в [plainText, entitiesJson] для хранения в БД.
+ */
+function extractTextAndEntities(mixed $raw): array {
+    if (is_string($raw)) {
+        return [$raw, null];
     }
-    if (is_array($text)) {
-        // Массив сущностей — склеиваем текстовые части
-        return implode('', array_map(function($part) {
-            if (is_string($part)) return $part;
-            if (is_array($part))  return $part['text'] ?? '';
-            return '';
-        }, $text));
+    if (!is_array($raw)) {
+        return ['', null];
     }
-    return '';
+
+    // Маппинг типов Desktop → Bot API
+    $typeMap = [
+        'bold'          => 'bold',
+        'italic'        => 'italic',
+        'underline'     => 'underline',
+        'strikethrough' => 'strikethrough',
+        'code'          => 'code',
+        'pre'           => 'pre',
+        'text_link'     => 'text_link',
+        'link'          => 'text_link',
+        'mention'       => 'mention',
+        'hashtag'       => 'hashtag',
+        'cashtag'       => 'cashtag',
+        'bot_command'   => 'bot_command',
+        'email'         => 'email',
+        'spoiler'       => 'spoiler',
+    ];
+
+    $plainText = '';
+    $entities  = [];
+    $offset    = 0; // в символах Unicode
+
+    foreach ($raw as $part) {
+        if (is_string($part)) {
+            $plainText .= $part;
+            $offset    += mb_strlen($part);
+            continue;
+        }
+        if (!is_array($part)) continue;
+
+        $partText = $part['text'] ?? '';
+        $len      = mb_strlen($partText);
+        $plainText .= $partText;
+
+        $type = $typeMap[$part['type'] ?? ''] ?? null;
+        if ($type) {
+            $entity = ['offset' => $offset, 'length' => $len, 'type' => $type];
+            if ($type === 'text_link' && isset($part['href'])) {
+                $entity['url'] = $part['href'];
+            }
+            $entities[] = $entity;
+        }
+
+        $offset += $len;
+    }
+
+    $entitiesJson = !empty($entities)
+        ? json_encode($entities, JSON_UNESCAPED_UNICODE)
+        : null;
+
+    return [$plainText, $entitiesJson];
 }
 
 function extractMedia(array $msg): array {

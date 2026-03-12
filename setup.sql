@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS tg_posts (
     thumb_url     VARCHAR(500),
     post_date     DATETIME NOT NULL,
     views         INT UNSIGNED DEFAULT NULL,
+    entities      TEXT DEFAULT NULL,
+    media_group_id VARCHAR(64) DEFAULT NULL,
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_channel_message (channel_id, tg_message_id),
     INDEX idx_channel_date (channel_id, post_date)

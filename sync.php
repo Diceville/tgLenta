@@ -145,9 +145,9 @@ $maxUpdate = $lastUpdateId;
 
 $insertStmt = $pdo->prepare("
     INSERT IGNORE INTO tg_posts
-        (tg_message_id, channel_id, text, media_type, media_file_id, media_url, thumb_url, post_date, views)
+        (tg_message_id, channel_id, text, media_type, media_file_id, media_url, thumb_url, post_date, views, entities, media_group_id)
     VALUES
-        (:tg_message_id, :channel_id, :text, :media_type, :media_file_id, :media_url, :thumb_url, :post_date, :views)
+        (:tg_message_id, :channel_id, :text, :media_type, :media_file_id, :media_url, :thumb_url, :post_date, :views, :entities, :media_group_id)
 ");
 
 foreach ($updates as $update) {
@@ -173,6 +173,12 @@ foreach ($updates as $update) {
     $postDate  = date('Y-m-d H:i:s', $msg['date']);
     $views     = isset($msg['views']) ? (int)$msg['views'] : null;
 
+    // Entities: из text или caption
+    $rawEntities = $msg['entities'] ?? $msg['caption_entities'] ?? null;
+    $entities    = $rawEntities ? json_encode($rawEntities, JSON_UNESCAPED_UNICODE) : null;
+
+    $mediaGroupId = $msg['media_group_id'] ?? null;
+
     [$mediaType, $mediaFileId, $thumbFileId] = extractMedia($msg);
 
     // Не скачиваем файлы — отдаём через media.php по file_id
@@ -181,15 +187,17 @@ foreach ($updates as $update) {
 
     try {
         $insertStmt->execute([
-            ':tg_message_id' => $messageId,
-            ':channel_id'    => $msgChannelId,
-            ':text'          => $text,
-            ':media_type'    => $mediaType,
-            ':media_file_id' => $mediaFileId,
-            ':media_url'     => $mediaUrl,
-            ':thumb_url'     => $thumbUrl,
-            ':post_date'     => $postDate,
-            ':views'         => $views,
+            ':tg_message_id'  => $messageId,
+            ':channel_id'     => $msgChannelId,
+            ':text'           => $text,
+            ':media_type'     => $mediaType,
+            ':media_file_id'  => $mediaFileId,
+            ':media_url'      => $mediaUrl,
+            ':thumb_url'      => $thumbUrl,
+            ':post_date'      => $postDate,
+            ':views'          => $views,
+            ':entities'       => $entities,
+            ':media_group_id' => $mediaGroupId,
         ]);
         if ($insertStmt->rowCount() > 0) {
             $synced++;

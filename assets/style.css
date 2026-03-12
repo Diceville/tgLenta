@@ -195,12 +195,40 @@ video.post-media {
 .post-text {
     font-size: 15px;
     line-height: 1.6;
-    white-space: pre-wrap;
     word-break: break-word;
 }
 
 .post-text a {
     color: var(--accent);
+}
+
+.post-text code {
+    background: rgba(0,0,0,.15);
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 13px;
+}
+
+.post-text pre {
+    background: rgba(0,0,0,.15);
+    border-radius: 6px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    font-size: 13px;
+}
+
+.spoiler {
+    background: var(--text-muted);
+    color: transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    user-select: none;
+    transition: all .2s;
+}
+
+.spoiler.revealed {
+    background: transparent;
+    color: inherit;
 }
 
 .post-footer {

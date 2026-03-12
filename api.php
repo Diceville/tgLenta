@@ -36,7 +36,7 @@ try {
 
         $stmt = $pdo->prepare("
             SELECT id, tg_message_id, channel_id, text, media_type, media_file_id,
-                   media_url, thumb_url, post_date, views
+                   media_url, thumb_url, post_date, views, entities, media_group_id
             FROM tg_posts
             WHERE text LIKE :q
               $channelFilter
@@ -63,7 +63,7 @@ try {
         // Режим polling: только новые посты
         $stmt = $pdo->prepare("
             SELECT id, tg_message_id, channel_id, text, media_type, media_file_id,
-                   media_url, thumb_url, post_date, views
+                   media_url, thumb_url, post_date, views, entities, media_group_id
             FROM tg_posts
             WHERE tg_message_id > :since_id
               $channelFilter
@@ -97,7 +97,7 @@ try {
 
         $stmt = $pdo->prepare("
             SELECT id, tg_message_id, channel_id, text, media_type, media_file_id,
-                   media_url, thumb_url, post_date, views
+                   media_url, thumb_url, post_date, views, entities, media_group_id
             FROM tg_posts
             WHERE 1=1
               $channelFilter
@@ -150,17 +150,19 @@ function formatPosts(array $posts): array {
         }
 
         return [
-            'id'          => (int)$post['id'],
-            'tg_id'       => $msgId,
-            'text'        => $post['text'],
-            'media_type'  => $post['media_type'],
-            'media_url'   => $mediaUrl,
-            'media_files' => null, // заполняется в groupAlbums
-            'thumb_url'   => $thumbUrl,
-            'date'        => $post['post_date'],
-            'timestamp'   => strtotime($post['post_date']),
-            'views'       => isset($post['views']) ? (int)$post['views'] : null,
-            'tg_link'     => $tgLink,
+            'id'             => (int)$post['id'],
+            'tg_id'          => $msgId,
+            'text'           => $post['text'],
+            'entities'       => $post['entities'] ? json_decode($post['entities'], true) : null,
+            'media_type'     => $post['media_type'],
+            'media_url'      => $mediaUrl,
+            'media_files'    => null, // заполняется в groupAlbums
+            'thumb_url'      => $thumbUrl,
+            'date'           => $post['post_date'],
+            'timestamp'      => strtotime($post['post_date']),
+            'views'          => isset($post['views']) ? (int)$post['views'] : null,
+            'tg_link'        => $tgLink,
+            'media_group_id' => $post['media_group_id'] ?? null,
         ];
     }, $posts);
 }
@@ -183,14 +185,25 @@ function groupAlbums(array $posts): array {
             continue;
         }
 
-        $group = [$p];
-        $j = $i + 1;
-        while ($j < $n
-               && $posts[$j]['media_type'] === 'photo'
-               && $posts[$j]['media_url']
-               && $posts[$j]['date'] === $p['date']) {
-            $group[] = $posts[$j];
-            $j++;
+        $group   = [$p];
+        $j       = $i + 1;
+        $groupId = $p['media_group_id'] ?? null;
+
+        if ($groupId) {
+            // Точная группировка по media_group_id
+            while ($j < $n && ($posts[$j]['media_group_id'] ?? null) === $groupId) {
+                $group[] = $posts[$j];
+                $j++;
+            }
+        } else {
+            // Fallback: группируем фото с одинаковой датой
+            while ($j < $n
+                   && $posts[$j]['media_type'] === 'photo'
+                   && $posts[$j]['media_url']
+                   && $posts[$j]['date'] === $p['date']) {
+                $group[] = $posts[$j];
+                $j++;
+            }
         }
 
         if (count($group) === 1) {

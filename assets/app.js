@@ -44,16 +44,55 @@ function formatViews(n) {
     return n.toString();
 }
 
-function linkify(text) {
+function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderEntities(text, entities) {
     if (!text) return '';
-    const safe = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-    return safe.replace(
-        /(https?:\/\/[^\s<>"]+)/g,
-        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-    );
+
+    if (!entities || !entities.length) {
+        // Нет entities — просто экранируем и делаем ссылки кликабельными
+        return escHtml(text)
+            .replace(/(https?:\/\/[^\s<>"]+)/g,
+                '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    }
+
+    // Сортируем по offset
+    const sorted = [...entities].sort((a, b) => a.offset - b.offset);
+
+    // Работаем с массивом Unicode-символов (правильная поддержка emoji)
+    const chars = [...text];
+    let html = '';
+    let pos  = 0;
+
+    for (const e of sorted) {
+        if (e.offset > pos) {
+            html += escHtml(chars.slice(pos, e.offset).join(''));
+        }
+        const raw = chars.slice(e.offset, e.offset + e.length).join('');
+        const esc = escHtml(raw);
+        switch (e.type) {
+            case 'bold':          html += `<strong>${esc}</strong>`; break;
+            case 'italic':        html += `<em>${esc}</em>`; break;
+            case 'underline':     html += `<u>${esc}</u>`; break;
+            case 'strikethrough': html += `<s>${esc}</s>`; break;
+            case 'code':          html += `<code>${esc}</code>`; break;
+            case 'pre':           html += `<pre>${esc}</pre>`; break;
+            case 'spoiler':       html += `<span class="spoiler">${esc}</span>`; break;
+            case 'text_link':     html += `<a href="${escHtml(e.url||'')}" target="_blank" rel="noopener noreferrer">${esc}</a>`; break;
+            case 'url':           html += `<a href="${esc}" target="_blank" rel="noopener noreferrer">${esc}</a>`; break;
+            case 'mention':       html += `<a href="https://t.me/${escHtml(raw.slice(1))}" target="_blank" rel="noopener noreferrer">${esc}</a>`; break;
+            default:              html += esc;
+        }
+        pos = e.offset + e.length;
+    }
+
+    if (pos < chars.length) {
+        html += escHtml(chars.slice(pos).join(''));
+    }
+
+    return html;
 }
 
 function setSyncStatus(msg, type = '') {
@@ -240,7 +279,11 @@ function renderPost(post) {
     if (post.text) {
         const textDiv = document.createElement('div');
         textDiv.className = 'post-text';
-        textDiv.innerHTML = linkify(post.text);
+        const rendered = renderEntities(post.text, post.entities);
+        textDiv.innerHTML = rendered.replace(/\n/g, '<br>');
+        textDiv.querySelectorAll('.spoiler').forEach(el => {
+            el.addEventListener('click', () => el.classList.toggle('revealed'));
+        });
         body.appendChild(textDiv);
     }
     const footer = document.createElement('div');

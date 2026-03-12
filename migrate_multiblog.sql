@@ -29,3 +29,8 @@ ALTER TABLE tg_posts
     DROP INDEX IF EXISTS tg_message_id,
     ADD UNIQUE KEY IF NOT EXISTS uq_channel_message (channel_id, tg_message_id),
     ADD INDEX IF NOT EXISTS idx_channel_date (channel_id, post_date);
+
+-- 4. Добавляем новые поля (entities, media_group_id)
+ALTER TABLE tg_posts
+    ADD COLUMN IF NOT EXISTS entities       TEXT         DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS media_group_id VARCHAR(64)  DEFAULT NULL;
