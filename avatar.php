@@ -21,7 +21,9 @@ if (!$fileId) {
     if (CHANNEL_TG_USERNAME) {
         $chatIdParam = '@' . CHANNEL_TG_USERNAME;
     } elseif (CHANNEL_ID) {
-        $chatIdParam = CHANNEL_ID;
+        // Bot API требует -100XXXXXXXXXX; если хранится без префикса — добавляем
+        $cid = CHANNEL_ID;
+        $chatIdParam = $cid < 0 ? $cid : (int)('-100' . $cid);
     } else {
         http_response_code(404);
         exit('CHANNEL_ID not configured');
