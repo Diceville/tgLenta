@@ -1,23 +1,51 @@
 <?php
 
+/**
+ * Шаблон конфигурации. Скопируйте этот файл в config.local.php и заполните.
+ * config.local.php НЕ коммитится в git.
+ *
+ * Для нового деплоя (новый канал / новый хостинг):
+ *   1. git clone <repo>
+ *   2. cp config.example.php config.local.php  и заполнить значения ниже
+ *   3. Выполнить setup.sql в базе данных
+ *   4. Открыть import.php (если есть история из Telegram Desktop)
+ *   5. Открыть migrate_file_ids.php (чтобы получить file_id для старых постов)
+ */
+
 // ─── Telegram Bot API ─────────────────────────────────────────────────────────
-// На production задайте переменные окружения вместо значений по умолчанию
-define('BOT_TOKEN',        getenv('BOT_TOKEN')        ?: 'YOUR_BOT_TOKEN_HERE');
-define('CHANNEL_USERNAME', getenv('CHANNEL_USERNAME') ?: 'your_channel_username');
+// Создать бота: https://t.me/BotFather → /newbot
+// Добавить бота в канал как администратора (чтобы он мог читать сообщения)
+putenv('BOT_TOKEN=YOUR_BOT_TOKEN_HERE');
 
-define('TELEGRAM_API_BASE',  'https://api.telegram.org/bot' . BOT_TOKEN);
-define('TELEGRAM_FILE_BASE', 'https://api.telegram.org/file/bot' . BOT_TOKEN);
+// Отображаемое название канала (заголовок сайта)
+putenv('CHANNEL_USERNAME=Название канала');
 
-// ─── База данных ──────────────────────────────────────────────────────────────
-define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
-define('DB_PORT', getenv('DB_PORT') ?: '3306');
-define('DB_NAME', getenv('DB_NAME') ?: 'tglenta');
-define('DB_USER', getenv('DB_USER') ?: 'root');
-define('DB_PASS', getenv('DB_PASS') ?: 'your_db_password');
+// @username канала без @ — нужен для ссылок вида t.me/username/123
+// Для приватного канала — оставьте пустым
+putenv('CHANNEL_TG_USERNAME=');
+
+// ─── База данных (MySQL/MariaDB) ───────────────────────────────────────────────
+putenv('DB_HOST=localhost');
+putenv('DB_PORT=3306');
+putenv('DB_NAME=tglenta');
+putenv('DB_USER=root');
+putenv('DB_PASS=YOUR_DB_PASSWORD');
 
 // ─── Настройки приложения ─────────────────────────────────────────────────────
-define('SYNC_INTERVAL',  (int)(getenv('SYNC_INTERVAL')  ?: 60));
-define('POSTS_PER_PAGE', (int)(getenv('POSTS_PER_PAGE') ?: 20));
+// Интервал автообновления ленты в секундах (по умолчанию 60)
+putenv('SYNC_INTERVAL=60');
 
-define('UPLOADS_DIR', getenv('UPLOADS_DIR') ?: __DIR__ . '/uploads');
-define('UPLOADS_URL', getenv('UPLOADS_URL') ?: '/uploads');
+// Количество постов на странице (по умолчанию 20)
+putenv('POSTS_PER_PAGE=20');
+
+// Базовый URL сайта. Пустая строка — если сайт в корне домена.
+// Пример для MAMP: /tgLenta
+putenv('BASE_URL=');
+
+// ─── SOCKS5-прокси для запросов к Telegram ────────────────────────────────────
+// Нужен если Telegram заблокирован у хостинг-провайдера.
+// Формат SOCKS5_PROXY: host:port (например 185.229.65.219:1080)
+// Формат SOCKS5_AUTH:  user:password (оставьте пустым если без авторизации)
+// Оставьте пустыми если прокси не нужен.
+putenv('SOCKS5_PROXY=');
+putenv('SOCKS5_AUTH=');

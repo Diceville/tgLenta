@@ -1,7 +1,3 @@
-# ─── SOCKS5-прокси для запросов к Telegram ───────────────────────────────────
-SetEnv SOCKS5_PROXY 185.229.65.219:1080
-SetEnv SOCKS5_AUTH Odradek93:OfeNgJqK7s
-
 RewriteEngine On
 
 # Запрещаем прямой доступ к чувствительным файлам

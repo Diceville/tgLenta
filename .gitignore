@@ -1,4 +1,5 @@
-# Локальные конфигурации с секретами
+# Локальные конфигурации с секретами — не коммитить!
+# Для нового деплоя: cp config.example.php config.local.php
 config.local.php
 config.beget.php
 
@@ -12,6 +13,3 @@ result.json
 # Системные файлы
 .DS_Store
 .claude/
-
-# Lock-файлы синхронизации
-/tmp/tglenta_sync.lock
