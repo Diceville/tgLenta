@@ -11,6 +11,33 @@
     --accent-hover:#006da8;
     --radius:      12px;
     --shadow:      0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+    --code-bg:     rgba(0,0,0,.08);
+}
+
+:root[data-theme="dark"] {
+    --bg:          #0e1117;
+    --surface:     #161b22;
+    --border:      #30363d;
+    --text:        #e6edf3;
+    --text-muted:  #7d8590;
+    --accent:      #2f81f7;
+    --accent-hover:#388bfd;
+    --shadow:      0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+    --code-bg:     rgba(255,255,255,.08);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg:          #0e1117;
+        --surface:     #161b22;
+        --border:      #30363d;
+        --text:        #e6edf3;
+        --text-muted:  #7d8590;
+        --accent:      #2f81f7;
+        --accent-hover:#388bfd;
+        --shadow:      0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+        --code-bg:     rgba(255,255,255,.08);
+    }
 }
 
 body {
@@ -203,14 +230,14 @@ video.post-media {
 }
 
 .post-text code {
-    background: rgba(0,0,0,.15);
+    background: var(--code-bg);
     border-radius: 3px;
     padding: 1px 4px;
     font-size: 13px;
 }
 
 .post-text pre {
-    background: rgba(0,0,0,.15);
+    background: var(--code-bg);
     border-radius: 6px;
     padding: 10px 12px;
     overflow-x: auto;
@@ -456,6 +483,46 @@ img.post-media { cursor: zoom-in; }
     transform: translateX(-50%);
     color: rgba(255,255,255,.7);
     font-size: 13px;
+}
+
+/* ─── Кнопка переключения темы ─────────────────────────────────────────────── */
+.btn-theme {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: color .15s, border-color .15s, background .15s;
+}
+
+.btn-theme:hover {
+    color: var(--text);
+    border-color: var(--accent);
+    background: var(--bg);
+}
+
+.btn-theme svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+/* По умолчанию — светлая тема: показываем луну (переключить в тёмную) */
+.icon-sun { display: none; }
+
+/* Тёмная тема: показываем солнце (переключить в светлую) */
+:root[data-theme="dark"] .icon-moon { display: none; }
+:root[data-theme="dark"] .icon-sun  { display: block; }
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .icon-moon { display: none; }
+    :root:not([data-theme="light"]) .icon-sun  { display: block; }
 }
 
 /* ─── Responsive ───────────────────────────────────────────────────────────── */

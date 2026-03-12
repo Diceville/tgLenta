@@ -452,6 +452,26 @@ searchInput.addEventListener('input', () => {
     }, 400);
 });
 
+// ─── Тема (светлая / тёмная) ──────────────────────────────────────────────────
+
+(function initTheme() {
+    const root   = document.getElementById('htmlRoot');
+    const btn    = document.getElementById('themeToggle');
+    if (!root || !btn) return;
+
+    const saved = localStorage.getItem('theme');
+    if (saved) root.dataset.theme = saved;
+
+    btn.addEventListener('click', () => {
+        const isDark = getComputedStyle(root).getPropertyValue('--bg').trim() === '#0e1117'
+            || root.dataset.theme === 'dark'
+            || (!root.dataset.theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        const next = isDark ? 'light' : 'dark';
+        root.dataset.theme = next;
+        localStorage.setItem('theme', next);
+    });
+})();
+
 // ─── Аватар канала ────────────────────────────────────────────────────────────
 
 (function loadAvatar() {
