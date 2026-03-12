@@ -24,6 +24,26 @@ CREATE TABLE IF NOT EXISTS tg_posts (
     INDEX idx_channel_date (channel_id, post_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ─── Комментарии к постам ─────────────────────────────────────────────────────
+-- Сохраняются из связанной группы обсуждений (Discussion group).
+-- Требует DISCUSSION_GROUP_ID в конфиге.
+CREATE TABLE IF NOT EXISTS tg_comments (
+    id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    post_id             INT UNSIGNED NOT NULL,
+    discussion_group_id BIGINT NOT NULL,
+    tg_message_id       BIGINT NOT NULL,
+    message_thread_id   BIGINT DEFAULT NULL,
+    user_id             BIGINT DEFAULT NULL,
+    user_name           VARCHAR(255) DEFAULT NULL,
+    user_username       VARCHAR(100) DEFAULT NULL,
+    text                TEXT,
+    entities            TEXT DEFAULT NULL,
+    post_date           DATETIME NOT NULL,
+    UNIQUE KEY uq_group_msg (discussion_group_id, tg_message_id),
+    INDEX idx_post_id (post_id),
+    INDEX idx_thread (discussion_group_id, message_thread_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ─── Состояние синхронизации ──────────────────────────────────────────────────
 -- Хранит last_update_id отдельно для каждого канала.
 CREATE TABLE IF NOT EXISTS tg_state (

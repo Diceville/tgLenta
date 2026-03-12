@@ -485,6 +485,104 @@ img.post-media { cursor: zoom-in; }
     font-size: 13px;
 }
 
+/* ─── Комментарии ──────────────────────────────────────────────────────────── */
+.post-comments-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: color .15s;
+}
+
+.post-comments-btn:hover { color: var(--accent); }
+
+.post-comments-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.comments-section {
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.comment {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.comment-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.comment-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.comment-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.comment-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.comment-date {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.comment-text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+    word-break: break-word;
+}
+
+.comments-loading {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 8px 0;
+}
+
+.comments-empty {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 4px 0;
+}
+
 /* ─── Кнопка переключения темы ─────────────────────────────────────────────── */
 .btn-theme {
     background: none;

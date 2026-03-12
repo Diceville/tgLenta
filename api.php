@@ -10,24 +10,51 @@ $page    = max(1, (int)($_GET['page'] ?? 1));
 $limit   = min(50, max(1, (int)($_GET['limit'] ?? POSTS_PER_PAGE)));
 $sinceId = isset($_GET['since_id']) ? (int)$_GET['since_id'] : null;
 $search  = isset($_GET['search']) ? trim($_GET['search']) : null;
+$postId  = isset($_GET['post_id']) ? (int)$_GET['post_id'] : null;
 $offset  = ($page - 1) * $limit;
 
 $pdo = db();
 
 // Фильтр по каналу: если CHANNEL_ID задан — показываем только его посты
 $channelId     = CHANNEL_ID;
-$channelFilter = $channelId ? 'AND channel_id = :channel_id' : '';
+$channelFilter = $channelId ? 'AND p.channel_id = :channel_id' : '';
 
 try {
+    // ─── Комментарии к посту ──────────────────────────────────────────────────
+    if ($postId) {
+        $stmt = $pdo->prepare("
+            SELECT id, tg_message_id, user_name, user_username, text, entities, post_date
+            FROM tg_comments
+            WHERE post_id = :post_id
+            ORDER BY post_date ASC
+            LIMIT 200
+        ");
+        $stmt->bindValue(':post_id', $postId, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll();
+
+        echo json_encode([
+            'comments' => array_map(fn($c) => [
+                'id'            => (int)$c['id'],
+                'user_name'     => $c['user_name'],
+                'user_username' => $c['user_username'],
+                'text'          => $c['text'],
+                'entities'      => $c['entities'] ? json_decode($c['entities'], true) : null,
+                'date'          => $c['post_date'],
+            ], $rows),
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     if ($search !== null && $search !== '') {
         // Режим поиска
         $like = '%' . $search . '%';
 
         $countStmt = $pdo->prepare("
-            SELECT COUNT(*) FROM tg_posts
-            WHERE text LIKE :q
+            SELECT COUNT(*) FROM tg_posts p
+            WHERE p.text LIKE :q
               $channelFilter
-              AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
+              AND NOT (p.media_type = 'none' AND (p.text IS NULL OR p.text = '') AND p.media_url IS NULL)
         ");
         $countParams = [':q' => $like];
         if ($channelId) $countParams[':channel_id'] = $channelId;
@@ -35,13 +62,16 @@ try {
         $total = (int)$countStmt->fetchColumn();
 
         $stmt = $pdo->prepare("
-            SELECT id, tg_message_id, channel_id, text, media_type, media_file_id,
-                   media_url, thumb_url, post_date, views, entities, media_group_id
-            FROM tg_posts
-            WHERE text LIKE :q
+            SELECT p.id, p.tg_message_id, p.channel_id, p.text, p.media_type, p.media_file_id,
+                   p.media_url, p.thumb_url, p.post_date, p.views, p.entities, p.media_group_id,
+                   COUNT(c.id) AS comments_count
+            FROM tg_posts p
+            LEFT JOIN tg_comments c ON c.post_id = p.id
+            WHERE p.text LIKE :q
               $channelFilter
-              AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
-            ORDER BY post_date DESC
+              AND NOT (p.media_type = 'none' AND (p.text IS NULL OR p.text = '') AND p.media_url IS NULL)
+            GROUP BY p.id
+            ORDER BY p.post_date DESC
             LIMIT :limit OFFSET :offset
         ");
         $stmt->bindValue(':q',      $like,   PDO::PARAM_STR);
@@ -62,13 +92,16 @@ try {
     } elseif ($sinceId !== null) {
         // Режим polling: только новые посты
         $stmt = $pdo->prepare("
-            SELECT id, tg_message_id, channel_id, text, media_type, media_file_id,
-                   media_url, thumb_url, post_date, views, entities, media_group_id
-            FROM tg_posts
-            WHERE tg_message_id > :since_id
+            SELECT p.id, p.tg_message_id, p.channel_id, p.text, p.media_type, p.media_file_id,
+                   p.media_url, p.thumb_url, p.post_date, p.views, p.entities, p.media_group_id,
+                   COUNT(c.id) AS comments_count
+            FROM tg_posts p
+            LEFT JOIN tg_comments c ON c.post_id = p.id
+            WHERE p.tg_message_id > :since_id
               $channelFilter
-              AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
-            ORDER BY post_date DESC
+              AND NOT (p.media_type = 'none' AND (p.text IS NULL OR p.text = '') AND p.media_url IS NULL)
+            GROUP BY p.id
+            ORDER BY p.post_date DESC
             LIMIT :limit
         ");
         $stmt->bindValue(':since_id', $sinceId, PDO::PARAM_INT);
@@ -86,23 +119,26 @@ try {
     } else {
         // Режим пагинации
         $countStmt = $pdo->prepare("
-            SELECT COUNT(*) FROM tg_posts
+            SELECT COUNT(*) FROM tg_posts p
             WHERE 1=1
               $channelFilter
-              AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
+              AND NOT (p.media_type = 'none' AND (p.text IS NULL OR p.text = '') AND p.media_url IS NULL)
         ");
         if ($channelId) $countStmt->execute([':channel_id' => $channelId]);
         else $countStmt->execute();
         $total = (int)$countStmt->fetchColumn();
 
         $stmt = $pdo->prepare("
-            SELECT id, tg_message_id, channel_id, text, media_type, media_file_id,
-                   media_url, thumb_url, post_date, views, entities, media_group_id
-            FROM tg_posts
+            SELECT p.id, p.tg_message_id, p.channel_id, p.text, p.media_type, p.media_file_id,
+                   p.media_url, p.thumb_url, p.post_date, p.views, p.entities, p.media_group_id,
+                   COUNT(c.id) AS comments_count
+            FROM tg_posts p
+            LEFT JOIN tg_comments c ON c.post_id = p.id
             WHERE 1=1
               $channelFilter
-              AND NOT (media_type = 'none' AND (text IS NULL OR text = '') AND media_url IS NULL)
-            ORDER BY post_date DESC
+              AND NOT (p.media_type = 'none' AND (p.text IS NULL OR p.text = '') AND p.media_url IS NULL)
+            GROUP BY p.id
+            ORDER BY p.post_date DESC
             LIMIT :limit OFFSET :offset
         ");
         if ($channelId) $stmt->bindValue(':channel_id', $channelId, PDO::PARAM_INT);
@@ -161,6 +197,7 @@ function formatPosts(array $posts): array {
             'date'           => $post['post_date'],
             'timestamp'      => strtotime($post['post_date']),
             'views'          => isset($post['views']) ? (int)$post['views'] : null,
+            'comments_count' => isset($post['comments_count']) ? (int)$post['comments_count'] : 0,
             'tg_link'        => $tgLink,
             'media_group_id' => $post['media_group_id'] ?? null,
         ];

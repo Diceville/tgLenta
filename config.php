@@ -35,6 +35,12 @@ define('UPLOADS_URL', getenv('UPLOADS_URL') ?: '/uploads');
 // Базовый URL сайта (пустой если сайт в корне, '/tgLenta' для локального MAMP)
 define('BASE_URL', getenv('BASE_URL') ?: '');
 
+// ID группы обсуждений (Discussion group), связанной с каналом.
+// Нужен для сохранения комментариев к постам. 0 = комментарии отключены.
+// Как узнать: включите комментарии в настройках канала, добавьте бота в группу,
+// оставьте комментарий и посмотрите chat.id в getUpdates.
+define('DISCUSSION_GROUP_ID', (int)(getenv('DISCUSSION_GROUP_ID') ?: 0));
+
 // ─── SOCKS5-прокси для запросов к Telegram ────────────────────────────────────
 // Формат SOCKS5_PROXY: host:port  Формат SOCKS5_AUTH: user:password
 // Оставьте пустыми если прокси не нужен (например, локальная разработка)

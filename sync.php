@@ -114,6 +114,43 @@ function extractMedia(array $msg): array {
     return [$mediaType, $mediaFileId, $thumbFileId];
 }
 
+/**
+ * Находит post_id для комментария из группы обсуждений.
+ * Стратегия:
+ *  1. reply_to_message — автоматически пересланный пост канала → forward_from_message_id
+ *  2. message_thread_id — ищем другой комментарий в этом треде с уже известным post_id
+ */
+function findPostIdForComment(PDO $pdo, array $msg, int $channelId): ?int {
+    // 1. Прямой ответ на пересланный пост канала
+    $reply = $msg['reply_to_message'] ?? null;
+    if ($reply && !empty($reply['forward_from_chat'])) {
+        $fwdChatId = (int)$reply['forward_from_chat']['id'];
+        $fwdMsgId  = (int)($reply['forward_from_message_id'] ?? 0);
+        if ($fwdChatId === $channelId && $fwdMsgId) {
+            $stmt = $pdo->prepare(
+                "SELECT id FROM tg_posts WHERE tg_message_id = ? AND channel_id = ? LIMIT 1"
+            );
+            $stmt->execute([$fwdMsgId, $channelId]);
+            $id = $stmt->fetchColumn();
+            if ($id) return (int)$id;
+        }
+    }
+
+    // 2. По message_thread_id — ищем уже сохранённый комментарий в этом треде
+    if (!empty($msg['message_thread_id'])) {
+        $stmt = $pdo->prepare(
+            "SELECT post_id FROM tg_comments
+             WHERE discussion_group_id = ? AND message_thread_id = ?
+             LIMIT 1"
+        );
+        $stmt->execute([DISCUSSION_GROUP_ID, (int)$msg['message_thread_id']]);
+        $id = $stmt->fetchColumn();
+        if ($id) return (int)$id;
+    }
+
+    return null;
+}
+
 // ─── Основная логика синхронизации ────────────────────────────────────────────
 
 $pdo = db();
@@ -126,11 +163,16 @@ $stmt->execute([$channelId]);
 $lastUpdateId = (int)($stmt->fetchColumn() ?? 0);
 
 // Запрашиваем новые обновления
+$allowedUpdates = ['channel_post'];
+if (DISCUSSION_GROUP_ID) {
+    $allowedUpdates[] = 'message';
+}
+
 $updates = tgRequest('getUpdates', [
     'offset'          => $lastUpdateId + 1,
     'limit'           => 100,
     'timeout'         => 0,
-    'allowed_updates' => ['channel_post'],
+    'allowed_updates' => $allowedUpdates,
 ]);
 
 if ($updates === null) {
@@ -141,6 +183,7 @@ if ($updates === null) {
 
 $synced   = 0;
 $errors   = [];
+$comments = 0;
 $maxUpdate = $lastUpdateId;
 
 $insertStmt = $pdo->prepare("
@@ -152,58 +195,86 @@ $insertStmt = $pdo->prepare("
 
 foreach ($updates as $update) {
     $updateId = (int)$update['update_id'];
-    if ($updateId > $maxUpdate) {
-        $maxUpdate = $updateId;
-    }
+    if ($updateId > $maxUpdate) $maxUpdate = $updateId;
 
-    $msg = $update['channel_post'] ?? null;
-    if (!$msg) continue;
+    // ─── Пост из канала ───────────────────────────────────────────────────────
+    $channelPost = $update['channel_post'] ?? null;
+    if ($channelPost) {
+        if (empty($channelPost['text']) && empty($channelPost['caption'])
+            && empty($channelPost['photo']) && empty($channelPost['video'])
+            && empty($channelPost['animation']) && empty($channelPost['document'])) {
+            // служебное сообщение — пропускаем
+        } else {
+            $text         = $channelPost['text'] ?? $channelPost['caption'] ?? null;
+            $msgChannelId = $channelPost['chat']['id'];
+            if (!$channelId || $msgChannelId === $channelId) {
+                $messageId    = (int)$channelPost['message_id'];
+                $postDate     = date('Y-m-d H:i:s', $channelPost['date']);
+                $views        = isset($channelPost['views']) ? (int)$channelPost['views'] : null;
+                $rawEntities  = $channelPost['entities'] ?? $channelPost['caption_entities'] ?? null;
+                $entities     = $rawEntities ? json_encode($rawEntities, JSON_UNESCAPED_UNICODE) : null;
+                $mediaGroupId = $channelPost['media_group_id'] ?? null;
+                [$mediaType, $mediaFileId, $thumbFileId] = extractMedia($channelPost);
 
-    // Пропускаем служебные сообщения без контента
-    if (empty($msg['text']) && empty($msg['caption']) && empty($msg['photo'])
-        && empty($msg['video']) && empty($msg['animation']) && empty($msg['document'])) {
-        continue;
-    }
-
-    $text      = $msg['text'] ?? $msg['caption'] ?? null;
-    $msgChannelId = $msg['chat']['id'];
-    // Пропускаем посты не из нашего канала (если бот добавлен в несколько каналов)
-    if ($channelId && $msgChannelId !== $channelId) continue;
-    $messageId = (int)$msg['message_id'];
-    $postDate  = date('Y-m-d H:i:s', $msg['date']);
-    $views     = isset($msg['views']) ? (int)$msg['views'] : null;
-
-    // Entities: из text или caption
-    $rawEntities = $msg['entities'] ?? $msg['caption_entities'] ?? null;
-    $entities    = $rawEntities ? json_encode($rawEntities, JSON_UNESCAPED_UNICODE) : null;
-
-    $mediaGroupId = $msg['media_group_id'] ?? null;
-
-    [$mediaType, $mediaFileId, $thumbFileId] = extractMedia($msg);
-
-    // Не скачиваем файлы — отдаём через media.php по file_id
-    $mediaUrl = null;
-    $thumbUrl = null;
-
-    try {
-        $insertStmt->execute([
-            ':tg_message_id'  => $messageId,
-            ':channel_id'     => $msgChannelId,
-            ':text'           => $text,
-            ':media_type'     => $mediaType,
-            ':media_file_id'  => $mediaFileId,
-            ':media_url'      => $mediaUrl,
-            ':thumb_url'      => $thumbUrl,
-            ':post_date'      => $postDate,
-            ':views'          => $views,
-            ':entities'       => $entities,
-            ':media_group_id' => $mediaGroupId,
-        ]);
-        if ($insertStmt->rowCount() > 0) {
-            $synced++;
+                try {
+                    $insertStmt->execute([
+                        ':tg_message_id'  => $messageId,
+                        ':channel_id'     => $msgChannelId,
+                        ':text'           => $text,
+                        ':media_type'     => $mediaType,
+                        ':media_file_id'  => $mediaFileId,
+                        ':media_url'      => null,
+                        ':thumb_url'      => null,
+                        ':post_date'      => $postDate,
+                        ':views'          => $views,
+                        ':entities'       => $entities,
+                        ':media_group_id' => $mediaGroupId,
+                    ]);
+                    if ($insertStmt->rowCount() > 0) $synced++;
+                } catch (PDOException $e) {
+                    $errors[] = "DB error for message $messageId: " . $e->getMessage();
+                }
+            }
         }
-    } catch (PDOException $e) {
-        $errors[] = "DB error for message $messageId: " . $e->getMessage();
+    }
+
+    // ─── Комментарий из группы обсуждений ────────────────────────────────────
+    $groupMsg = $update['message'] ?? null;
+    if ($groupMsg && DISCUSSION_GROUP_ID
+        && (int)($groupMsg['chat']['id'] ?? 0) === DISCUSSION_GROUP_ID
+        && empty($groupMsg['is_automatic_forward'])
+        && (!empty($groupMsg['text']) || !empty($groupMsg['caption']))
+    ) {
+        $postId = findPostIdForComment($pdo, $groupMsg, $channelId);
+        if ($postId) {
+            $from         = $groupMsg['from'] ?? [];
+            $userName     = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: null;
+            $rawEnt       = $groupMsg['entities'] ?? $groupMsg['caption_entities'] ?? null;
+            $ent          = $rawEnt ? json_encode($rawEnt, JSON_UNESCAPED_UNICODE) : null;
+
+            try {
+                $pdo->prepare("
+                    INSERT IGNORE INTO tg_comments
+                        (post_id, discussion_group_id, tg_message_id, message_thread_id,
+                         user_id, user_name, user_username, text, entities, post_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ")->execute([
+                    $postId,
+                    DISCUSSION_GROUP_ID,
+                    (int)$groupMsg['message_id'],
+                    isset($groupMsg['message_thread_id']) ? (int)$groupMsg['message_thread_id'] : null,
+                    $from['id'] ?? null,
+                    $userName,
+                    $from['username'] ?? null,
+                    $groupMsg['text'] ?? $groupMsg['caption'] ?? null,
+                    $ent,
+                    date('Y-m-d H:i:s', $groupMsg['date']),
+                ]);
+                $comments++;
+            } catch (PDOException $e) {
+                $errors[] = 'Comment error: ' . $e->getMessage();
+            }
+        }
     }
 }
 
@@ -218,7 +289,8 @@ if ($maxUpdate > $lastUpdateId) {
 flock($lock, LOCK_UN);
 
 echo json_encode([
-    'synced'  => $synced,
-    'updates' => count($updates),
-    'errors'  => $errors,
+    'synced'   => $synced,
+    'comments' => $comments,
+    'updates'  => count($updates),
+    'errors'   => $errors,
 ]);

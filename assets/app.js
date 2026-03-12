@@ -305,6 +305,31 @@ function renderPost(post) {
         footerRight.appendChild(views);
     }
 
+    if (post.comments_count > 0 || post.comments_count === 0) {
+        const commentsBtn = document.createElement('button');
+        commentsBtn.className = 'post-comments-btn';
+        commentsBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${post.comments_count || ''}`;
+
+        let section = null;
+        let loaded  = false;
+
+        commentsBtn.addEventListener('click', () => {
+            if (!section) {
+                section = document.createElement('div');
+                section.className = 'comments-section';
+                article.appendChild(section);
+            }
+            if (section.hidden) {
+                section.hidden = false;
+                if (!loaded) { loaded = true; loadComments(post.id, section); }
+            } else {
+                section.hidden = true;
+            }
+        });
+
+        footerRight.insertBefore(commentsBtn, footerRight.firstChild);
+    }
+
     const link = document.createElement('a');
     link.className = 'post-link';
     link.href      = post.tg_link;
@@ -318,6 +343,63 @@ function renderPost(post) {
     article.appendChild(body);
 
     return article;
+}
+
+// ─── Комментарии ──────────────────────────────────────────────────────────────
+
+function renderComment(c) {
+    const wrap = document.createElement('div');
+    wrap.className = 'comment';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'comment-avatar';
+    const name = c.user_name || c.user_username || '?';
+    avatar.textContent = [...name][0].toUpperCase();
+    wrap.appendChild(avatar);
+
+    const body = document.createElement('div');
+    body.className = 'comment-body';
+
+    const header = document.createElement('div');
+    header.className = 'comment-header';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'comment-name';
+    nameEl.textContent = name;
+    header.appendChild(nameEl);
+
+    const dateEl = document.createElement('time');
+    dateEl.className = 'comment-date';
+    dateEl.textContent = formatDate(c.date);
+    header.appendChild(dateEl);
+
+    body.appendChild(header);
+
+    if (c.text) {
+        const textEl = document.createElement('div');
+        textEl.className = 'comment-text';
+        textEl.innerHTML = renderEntities(c.text, c.entities).replace(/\n/g, '<br>');
+        body.appendChild(textEl);
+    }
+
+    wrap.appendChild(body);
+    return wrap;
+}
+
+async function loadComments(postId, section) {
+    section.innerHTML = '<div class="comments-loading">Загрузка...</div>';
+    try {
+        const res  = await fetch(`${API_URL}?post_id=${postId}`);
+        const data = await res.json();
+        section.innerHTML = '';
+        if (!data.comments || data.comments.length === 0) {
+            section.innerHTML = '<div class="comments-empty">Комментариев пока нет</div>';
+            return;
+        }
+        data.comments.forEach(c => section.appendChild(renderComment(c)));
+    } catch {
+        section.innerHTML = '<div class="comments-empty">Не удалось загрузить комментарии</div>';
+    }
 }
 
 // ─── Загрузка постов ──────────────────────────────────────────────────────────
