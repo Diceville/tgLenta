@@ -249,7 +249,7 @@ function renderPost(post) {
             a.href = post.tg_link;
             a.target = '_blank';
             a.rel = 'noopener';
-            a.textContent = 'Смотреть в Telegram →';
+            a.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>Открыть`;
             wrap.appendChild(a);
             video.replaceWith(wrap);
         });
@@ -308,7 +308,7 @@ function renderPost(post) {
     if (post.comments_count > 0 || post.comments_count === 0) {
         const commentsBtn = document.createElement('button');
         commentsBtn.className = 'post-comments-btn';
-        commentsBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${post.comments_count || ''}`;
+        commentsBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Комментарии${post.comments_count ? ' ' + post.comments_count : ''}`;
 
         let section = null;
         let loaded  = false;
@@ -333,7 +333,7 @@ function renderPost(post) {
     link.href      = post.tg_link;
     link.target    = '_blank';
     link.rel       = 'noopener noreferrer';
-    link.textContent = 'Открыть в Telegram';
+    link.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>Открыть`;
     footerRight.appendChild(link);
 
     footer.appendChild(footerRight);
