@@ -208,6 +208,11 @@ foreach ($updates as $update) {
         } else {
             $text         = $channelPost['text'] ?? $channelPost['caption'] ?? null;
             $msgChannelId = $channelPost['chat']['id'];
+            // Нормализуем channel_id: Telegram возвращает -1001234567890,
+            // а импорт хранит 1234567890 (без префикса -100)
+            $storeChannelId = $msgChannelId < 0
+                ? (int)substr((string)abs($msgChannelId), 3)
+                : $msgChannelId;
             // Сохраняем посты из ЛЮБОГО канала — фильтр по channel_id только в api.php.
             // Это важно когда несколько блогов используют одного бота: один блог не должен
             // "съедать" апдейты другого канала не сохранив их.
@@ -223,7 +228,7 @@ foreach ($updates as $update) {
                 try {
                     $insertStmt->execute([
                         ':tg_message_id'  => $messageId,
-                        ':channel_id'     => $msgChannelId,
+                        ':channel_id'     => $storeChannelId,
                         ':text'           => $text,
                         ':media_type'     => $mediaType,
                         ':media_file_id'  => $mediaFileId,
