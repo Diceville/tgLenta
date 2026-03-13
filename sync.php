@@ -300,9 +300,13 @@ if ($maxUpdate > $lastUpdateId) {
 
 flock($lock, LOCK_UN);
 
-echo json_encode([
+$result = [
     'synced'   => $synced,
     'comments' => $comments,
     'updates'  => count($updates),
     'errors'   => $errors,
-]);
+];
+if (!empty($_GET['debug'])) {
+    $result['raw_updates'] = $updates;
+}
+echo json_encode($result, JSON_UNESCAPED_UNICODE);
