@@ -276,35 +276,12 @@ foreach ($updates as $update) {
 
     // ─── Комментарий из группы обсуждений ────────────────────────────────────
     $groupMsg = $update['message'] ?? null;
-    if ($groupMsg && !empty($_GET['debug'])) {
-        $errors[] = [
-            'debug_msg'           => true,
-            'DISCUSSION_GROUP_ID' => DISCUSSION_GROUP_ID,
-            'chat_id'             => $groupMsg['chat']['id'] ?? null,
-            'chat_match'          => (int)($groupMsg['chat']['id'] ?? 0) === DISCUSSION_GROUP_ID,
-            'is_auto_fwd'         => $groupMsg['is_automatic_forward'] ?? null,
-            'has_text'            => !empty($groupMsg['text']) || !empty($groupMsg['caption']),
-        ];
-    }
     if ($groupMsg && DISCUSSION_GROUP_ID
         && (int)($groupMsg['chat']['id'] ?? 0) === DISCUSSION_GROUP_ID
         && empty($groupMsg['is_automatic_forward'])
         && (!empty($groupMsg['text']) || !empty($groupMsg['caption']))
     ) {
         $postId = findPostIdForComment($pdo, $groupMsg);
-        if (!empty($_GET['debug'])) {
-            $reply = $groupMsg['reply_to_message'] ?? null;
-            $fwdOrigin = $reply['forward_origin'] ?? null;
-            $errors[] = [
-                'debug_comment' => true,
-                'chat_id'       => $groupMsg['chat']['id'] ?? null,
-                'DISCUSSION_GROUP_ID' => DISCUSSION_GROUP_ID,
-                'chat_match'    => (int)($groupMsg['chat']['id'] ?? 0) === DISCUSSION_GROUP_ID,
-                'is_auto_fwd'   => $reply['is_automatic_forward'] ?? null,
-                'fwd_origin'    => $fwdOrigin,
-                'post_id_found' => $postId,
-            ];
-        }
         if ($postId) {
             $from         = $groupMsg['from'] ?? [];
             $userName     = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: null;
