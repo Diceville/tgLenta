@@ -152,11 +152,26 @@ foreach ($messages as $msgId => $msg) {
     if (preg_match('/^user/', $fromId)) continue; // бот тоже user*, пропускаем
 
     $date = (int)$msg['date_unixtime'];
+
+    // Стратегия 1: по дате (±30 сек)
     $stmt = $pdo->prepare(
         "SELECT id FROM tg_posts WHERE channel_id = ? AND ABS(UNIX_TIMESTAMP(post_date) - ?) <= 30 LIMIT 1"
     );
     $stmt->execute([CHANNEL_ID, $date]);
     $postId = $stmt->fetchColumn();
+
+    // Стратегия 2: по тексту (fallback при расхождении timezone)
+    if (!$postId) {
+        $anchorText = extractText($msg['text'] ?? '');
+        $textPrefix = mb_substr(trim($anchorText), 0, 80);
+        if ($textPrefix) {
+            $stmt2 = $pdo->prepare(
+                "SELECT id FROM tg_posts WHERE channel_id = ? AND text LIKE ? LIMIT 1"
+            );
+            $stmt2->execute([CHANNEL_ID, $textPrefix . '%']);
+            $postId = $stmt2->fetchColumn();
+        }
+    }
 
     if ($postId) {
         $anchors[$msgId] = (int)$postId;
