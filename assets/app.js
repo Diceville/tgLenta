@@ -81,9 +81,12 @@ function renderEntities(text, entities) {
             case 'pre':           html += `<pre>${esc}</pre>`; break;
             case 'spoiler':       html += `<span class="spoiler">${esc}</span>`; break;
             case 'text_link': {
-                // Если видимый текст сам является URL — используем его как href,
-                // иначе берём e.url (текст может быть "Читать далее", href — ссылка)
-                const href = /^https?:\/\//.test(raw) ? raw : (e.url || '');
+                // Доверяем видимому тексту если:
+                // 1. текст сам является URL, или
+                // 2. href ведёт на наш канал (автор скрыл реальную ссылку за ссылкой на блог)
+                const channelUrl = (window.APP_CONFIG || {}).channelTgUrl || '';
+                const hrefIsBlog = channelUrl && (e.url || '').startsWith(channelUrl);
+                const href = (/^https?:\/\//.test(raw) || hrefIsBlog) ? raw : (e.url || '');
                 html += `<a href="${escHtml(href)}" target="_blank" rel="noopener noreferrer">${esc}</a>`;
                 break;
             }
