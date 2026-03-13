@@ -121,19 +121,20 @@ function extractMedia(array $msg): array {
  *  2. message_thread_id — ищем другой комментарий в этом треде с уже известным post_id
  */
 function findPostIdForComment(PDO $pdo, array $msg): ?int {
-    // 1. Прямой ответ на пересланный пост канала
+    // 1. Ответ на авто-пересланный пост канала в группе обсуждений
+    // Используем sender_chat.id (сам канал) + date, а не forward_from_chat
+    // (forward_from_chat может указывать на оригинальный источник репоста, а не на наш канал)
     $reply = $msg['reply_to_message'] ?? null;
-    if ($reply && !empty($reply['forward_from_chat'])) {
-        $rawFwdId  = (int)$reply['forward_from_chat']['id'];
-        // Нормализуем: Telegram отдаёт -1001234567890, в БД хранится 1234567890
-        $fwdChatId = $rawFwdId < 0 ? (int)substr((string)abs($rawFwdId), 3) : $rawFwdId;
-        $fwdMsgId  = (int)($reply['forward_from_message_id'] ?? 0);
-        // Ищем по fwdChatId из самого форварда — любой sync.php найдёт пост любого канала
-        if ($fwdChatId && $fwdMsgId) {
+    if ($reply && !empty($reply['is_automatic_forward'])) {
+        $senderChat = $reply['sender_chat'] ?? [];
+        $rawSenderId = (int)($senderChat['id'] ?? 0);
+        $senderId = $rawSenderId < 0 ? (int)substr((string)abs($rawSenderId), 3) : $rawSenderId;
+        if ($senderId && !empty($reply['date'])) {
+            $postDate = date('Y-m-d H:i:s', (int)$reply['date']);
             $stmt = $pdo->prepare(
-                "SELECT id FROM tg_posts WHERE tg_message_id = ? AND channel_id = ? LIMIT 1"
+                "SELECT id FROM tg_posts WHERE channel_id = ? AND post_date = ? LIMIT 1"
             );
-            $stmt->execute([$fwdMsgId, $fwdChatId]);
+            $stmt->execute([$senderId, $postDate]);
             $id = $stmt->fetchColumn();
             if ($id) return (int)$id;
         }
