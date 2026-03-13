@@ -58,7 +58,7 @@
         window.APP_CONFIG = {
             syncInterval: <?= SYNC_INTERVAL * 1000 ?>,
             postsPerPage: <?= POSTS_PER_PAGE ?>,
-            channelTgUrl: <?= json_encode(CHANNEL_TG_USERNAME ? 'https://t.me/' . CHANNEL_TG_USERNAME : '') ?>
+            siteUrl: <?= json_encode((isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '')) ?>
         };
     </script>
     <script src="assets/app.js"></script>

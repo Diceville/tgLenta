@@ -83,10 +83,10 @@ function renderEntities(text, entities) {
             case 'text_link': {
                 // Доверяем видимому тексту если:
                 // 1. текст сам является URL, или
-                // 2. href ведёт на наш канал (автор скрыл реальную ссылку за ссылкой на блог)
-                const channelUrl = (window.APP_CONFIG || {}).channelTgUrl || '';
-                const hrefIsBlog = channelUrl && (e.url || '').startsWith(channelUrl);
-                const href = (/^https?:\/\//.test(raw) || hrefIsBlog) ? raw : (e.url || '');
+                // 2. href ведёт на наш сайт (автор скрыл реальную ссылку за ссылкой на блог)
+                const siteUrl = (window.APP_CONFIG || {}).siteUrl || '';
+                const hrefIsSite = siteUrl && (e.url || '').startsWith(siteUrl);
+                const href = (/^https?:\/\//.test(raw) || hrefIsSite) ? raw : (e.url || '');
                 html += `<a href="${escHtml(href)}" target="_blank" rel="noopener noreferrer">${esc}</a>`;
                 break;
             }
