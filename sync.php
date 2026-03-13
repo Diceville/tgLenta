@@ -122,19 +122,33 @@ function extractMedia(array $msg): array {
  */
 function findPostIdForComment(PDO $pdo, array $msg): ?int {
     // 1. Ответ на авто-пересланный пост канала в группе обсуждений
-    // Используем sender_chat.id (сам канал) + date, а не forward_from_chat
-    // (forward_from_chat может указывать на оригинальный источник репоста, а не на наш канал)
     $reply = $msg['reply_to_message'] ?? null;
     if ($reply && !empty($reply['is_automatic_forward'])) {
-        $senderChat = $reply['sender_chat'] ?? [];
+        // 1a. forward_origin.message_id — точный ID поста в канале (работает для оригинальных постов)
+        $fwdOrigin = $reply['forward_origin'] ?? null;
+        if ($fwdOrigin && ($fwdOrigin['type'] ?? '') === 'channel' && !empty($fwdOrigin['chat'])) {
+            $rawOriginId = (int)$fwdOrigin['chat']['id'];
+            $originId    = $rawOriginId < 0 ? (int)substr((string)abs($rawOriginId), 3) : $rawOriginId;
+            $originMsgId = (int)($fwdOrigin['message_id'] ?? 0);
+            if ($originId && $originMsgId) {
+                $stmt = $pdo->prepare(
+                    "SELECT id FROM tg_posts WHERE tg_message_id = ? AND channel_id = ? LIMIT 1"
+                );
+                $stmt->execute([$originMsgId, $originId]);
+                $id = $stmt->fetchColumn();
+                if ($id) return (int)$id;
+            }
+        }
+
+        // 1b. Запасной: sender_chat.id + дата с погрешностью ±30 сек (для репостов из других каналов)
+        $senderChat  = $reply['sender_chat'] ?? [];
         $rawSenderId = (int)($senderChat['id'] ?? 0);
-        $senderId = $rawSenderId < 0 ? (int)substr((string)abs($rawSenderId), 3) : $rawSenderId;
+        $senderId    = $rawSenderId < 0 ? (int)substr((string)abs($rawSenderId), 3) : $rawSenderId;
         if ($senderId && !empty($reply['date'])) {
-            $postDate = date('Y-m-d H:i:s', (int)$reply['date']);
             $stmt = $pdo->prepare(
-                "SELECT id FROM tg_posts WHERE channel_id = ? AND post_date = ? LIMIT 1"
+                "SELECT id FROM tg_posts WHERE channel_id = ? AND ABS(UNIX_TIMESTAMP(post_date) - ?) <= 30 LIMIT 1"
             );
-            $stmt->execute([$senderId, $postDate]);
+            $stmt->execute([$senderId, (int)$reply['date']]);
             $id = $stmt->fetchColumn();
             if ($id) return (int)$id;
         }
