@@ -82,11 +82,15 @@ function renderEntities(text, entities) {
             case 'spoiler':       html += `<span class="spoiler">${esc}</span>`; break;
             case 'text_link': {
                 // Доверяем видимому тексту если:
-                // 1. текст сам является URL, или
+                // 1. текст сам является URL (начинается с http), или
                 // 2. href ведёт на наш сайт (автор скрыл реальную ссылку за ссылкой на блог)
                 const siteUrl = (window.APP_CONFIG || {}).siteUrl || '';
                 const hrefIsSite = siteUrl && (e.url || '').startsWith(siteUrl);
-                const href = (/^https?:\/\//.test(raw) || hrefIsSite) ? raw : (e.url || '');
+                let href = (/^https?:\/\//.test(raw) || hrefIsSite) ? raw : (e.url || '');
+                // Если href пустой, но текст похож на домен/URL без протокола — добавляем https://
+                if (!href && raw.includes('.') && !/\s/.test(raw)) {
+                    href = 'https://' + raw;
+                }
                 html += `<a href="${escHtml(href)}" target="_blank" rel="noopener noreferrer">${esc}</a>`;
                 break;
             }
