@@ -12,6 +12,15 @@ if (!flock($lock, LOCK_EX | LOCK_NB)) {
 
 header('Content-Type: application/json');
 
+if (!empty($_GET['config'])) {
+    echo json_encode([
+        'CHANNEL_ID'          => CHANNEL_ID,
+        'DISCUSSION_GROUP_ID' => DISCUSSION_GROUP_ID,
+        'BOT_TOKEN_SET'       => defined('BOT_TOKEN') && BOT_TOKEN ? 'yes' : 'no',
+    ]);
+    exit;
+}
+
 // ─── Вспомогательные функции ──────────────────────────────────────────────────
 
 function tgRequest(string $method, array $params = []): ?array {
