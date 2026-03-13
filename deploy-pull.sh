@@ -4,14 +4,14 @@
 # Требует: sshpass  →  brew install sshpass
 
 # ─── Настройки ────────────────────────────────────────────────────────────────
-SSH_HOST="ssh.beget.com"     # хост SSH на Beget
-SSH_USER="your_username"     # логин Beget
+SSH_HOST="diceville.beget.tech"     # хост SSH на Beget
+SSH_USER="diceville"     # логин Beget
 SSH_PORT=22
 
 # Папки блогов на сервере (добавляй новые сюда)
 BLOGS=(
-    "/home/${SSH_USER}/blog.kkr.ru/aekuznetsov"
-    "/home/${SSH_USER}/blog.kkr.ru/cityguide"
+    "/home/d/${SSH_USER}/blog.kkr.ru/public_html/aekuznetsov"
+    "/home/d/${SSH_USER}/blog.kkr.ru/public_html/cityguide"
 )
 # ──────────────────────────────────────────────────────────────────────────────
 
