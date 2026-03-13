@@ -191,7 +191,7 @@ $stmt->execute();
 $lastUpdateId = (int)($stmt->fetchColumn() ?? 0);
 
 // Запрашиваем новые обновления
-$allowedUpdates = ['channel_post'];
+$allowedUpdates = ['channel_post', 'edited_channel_post'];
 if (DISCUSSION_GROUP_ID) {
     $allowedUpdates[] = 'message';
 }
@@ -225,8 +225,9 @@ foreach ($updates as $update) {
     $updateId = (int)$update['update_id'];
     if ($updateId > $maxUpdate) $maxUpdate = $updateId;
 
-    // ─── Пост из канала ───────────────────────────────────────────────────────
-    $channelPost = $update['channel_post'] ?? null;
+    // ─── Пост из канала (новый или отредактированный) ────────────────────────
+    $channelPost = $update['channel_post'] ?? $update['edited_channel_post'] ?? null;
+    $isEdit      = isset($update['edited_channel_post']);
     if ($channelPost) {
         if (empty($channelPost['text']) && empty($channelPost['caption'])
             && empty($channelPost['photo']) && empty($channelPost['video'])
@@ -241,18 +242,37 @@ foreach ($updates as $update) {
                 ? (int)substr((string)abs($msgChannelId), 3)
                 : $msgChannelId;
             // Сохраняем посты из ЛЮБОГО канала — фильтр по channel_id только в api.php.
-            // Это важно когда несколько блогов используют одного бота: один блог не должен
-            // "съедать" апдейты другого канала не сохранив их.
-            {
-                $messageId    = (int)$channelPost['message_id'];
-                $postDate     = date('Y-m-d H:i:s', $channelPost['date']);
-                $views        = isset($channelPost['views']) ? (int)$channelPost['views'] : null;
-                $rawEntities  = $channelPost['entities'] ?? $channelPost['caption_entities'] ?? null;
-                $entities     = $rawEntities ? json_encode($rawEntities, JSON_UNESCAPED_UNICODE) : null;
-                $mediaGroupId = $channelPost['media_group_id'] ?? null;
-                [$mediaType, $mediaFileId, $thumbFileId] = extractMedia($channelPost);
+            $messageId    = (int)$channelPost['message_id'];
+            $postDate     = date('Y-m-d H:i:s', $channelPost['date']);
+            $views        = isset($channelPost['views']) ? (int)$channelPost['views'] : null;
+            $rawEntities  = $channelPost['entities'] ?? $channelPost['caption_entities'] ?? null;
+            $entities     = $rawEntities ? json_encode($rawEntities, JSON_UNESCAPED_UNICODE) : null;
+            $mediaGroupId = $channelPost['media_group_id'] ?? null;
+            [$mediaType, $mediaFileId, $thumbFileId] = extractMedia($channelPost);
 
-                try {
+            try {
+                if ($isEdit) {
+                    // Обновляем существующий пост
+                    $pdo->prepare("
+                        UPDATE tg_posts SET
+                            text = :text, entities = :entities,
+                            media_type = :media_type, media_file_id = :media_file_id,
+                            media_url = CASE WHEN :reset_media THEN NULL ELSE media_url END,
+                            thumb_url = CASE WHEN :reset_thumb THEN NULL ELSE thumb_url END,
+                            views = COALESCE(:views, views)
+                        WHERE tg_message_id = :tg_message_id AND channel_id = :channel_id
+                    ")->execute([
+                        ':text'          => $text,
+                        ':entities'      => $entities,
+                        ':media_type'    => $mediaType,
+                        ':media_file_id' => $mediaFileId,
+                        ':reset_media'   => $mediaFileId ? 1 : 0,
+                        ':reset_thumb'   => $thumbFileId ? 1 : 0,
+                        ':views'         => $views,
+                        ':tg_message_id' => $messageId,
+                        ':channel_id'    => $storeChannelId,
+                    ]);
+                } else {
                     $insertStmt->execute([
                         ':tg_message_id'  => $messageId,
                         ':channel_id'     => $storeChannelId,
@@ -267,9 +287,9 @@ foreach ($updates as $update) {
                         ':media_group_id' => $mediaGroupId,
                     ]);
                     if ($insertStmt->rowCount() > 0) $synced++;
-                } catch (PDOException $e) {
-                    $errors[] = "DB error for message $messageId: " . $e->getMessage();
                 }
+            } catch (PDOException $e) {
+                $errors[] = "DB error for message $messageId: " . $e->getMessage();
             }
         }
     }
