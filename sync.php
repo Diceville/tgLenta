@@ -124,7 +124,9 @@ function findPostIdForComment(PDO $pdo, array $msg, int $channelId): ?int {
     // 1. Прямой ответ на пересланный пост канала
     $reply = $msg['reply_to_message'] ?? null;
     if ($reply && !empty($reply['forward_from_chat'])) {
-        $fwdChatId = (int)$reply['forward_from_chat']['id'];
+        $rawFwdId  = (int)$reply['forward_from_chat']['id'];
+        // Нормализуем: Telegram отдаёт -1001234567890, в БД хранится 1234567890
+        $fwdChatId = $rawFwdId < 0 ? (int)substr((string)abs($rawFwdId), 3) : $rawFwdId;
         $fwdMsgId  = (int)($reply['forward_from_message_id'] ?? 0);
         if ($fwdChatId === $channelId && $fwdMsgId) {
             $stmt = $pdo->prepare(
