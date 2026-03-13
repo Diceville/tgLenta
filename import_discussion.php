@@ -113,6 +113,29 @@ $anchors  = [];   // id → post_id (для авто-пересланных по
 
 $channelIdStr = 'channel' . CHANNEL_ID; // "channel1665934953"
 
+// ─── Диагностика БД ───────────────────────────────────────────────────────────
+out("Диагностика:");
+out("  CHANNEL_ID = " . CHANNEL_ID);
+out("  channelIdStr = $channelIdStr");
+$diagStmt = $pdo->query("SELECT COUNT(*) FROM tg_posts WHERE channel_id = " . (int)CHANNEL_ID);
+out("  Постов в БД для этого канала: " . $diagStmt->fetchColumn());
+$diagStmt2 = $pdo->query("SELECT DISTINCT channel_id FROM tg_posts LIMIT 10");
+out("  channel_id в БД: " . implode(', ', $diagStmt2->fetchAll(PDO::FETCH_COLUMN)));
+$diagStmt3 = $pdo->query("SELECT MIN(post_date), MAX(post_date) FROM tg_posts WHERE channel_id = " . (int)CHANNEL_ID);
+$row = $diagStmt3->fetch(PDO::FETCH_NUM);
+out("  Диапазон дат постов: {$row[0]} — {$row[1]}");
+
+// Подсчитаем сколько якорей есть в экспорте
+$anchorCount = 0;
+foreach ($data['messages'] as $msg) {
+    if (($msg['type'] ?? '') !== 'message') continue;
+    $fwd = $msg['forwarded_from_id'] ?? null;
+    $fid = $msg['from_id'] ?? '';
+    if ($fwd === $channelIdStr && !preg_match('/^user/', $fid)) $anchorCount++;
+}
+out("  Якорей в экспорте (авто-пересланных из канала): $anchorCount");
+out("");
+
 foreach ($data['messages'] as $msg) {
     if (($msg['type'] ?? '') !== 'message') continue;
     $messages[(int)$msg['id']] = $msg;
