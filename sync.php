@@ -284,7 +284,19 @@ foreach ($updates as $update) {
         $postId = findPostIdForComment($pdo, $groupMsg);
         if ($postId) {
             $from         = $groupMsg['from'] ?? [];
-            $userName     = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: null;
+            $senderChat   = $groupMsg['sender_chat'] ?? [];
+            // GroupAnonymousBot (id=1087968824) означает анонимный пост от имени канала/группы
+            $isAnon = ($from['id'] ?? 0) === 1087968824;
+            if ($isAnon && !empty($senderChat['title'])) {
+                // Если sender_chat — сам канал/группа автора (не группа обсуждений)
+                $userName     = $senderChat['title'];
+                $userUsername = $senderChat['username'] ?? null;
+                $userId       = $senderChat['id'] ?? null;
+            } else {
+                $userName     = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: null;
+                $userUsername = $from['username'] ?? null;
+                $userId       = $from['id'] ?? null;
+            }
             $rawEnt       = $groupMsg['entities'] ?? $groupMsg['caption_entities'] ?? null;
             $ent          = $rawEnt ? json_encode($rawEnt, JSON_UNESCAPED_UNICODE) : null;
 
@@ -299,9 +311,9 @@ foreach ($updates as $update) {
                     DISCUSSION_GROUP_ID,
                     (int)$groupMsg['message_id'],
                     isset($groupMsg['message_thread_id']) ? (int)$groupMsg['message_thread_id'] : null,
-                    $from['id'] ?? null,
+                    $userId,
                     $userName,
-                    $from['username'] ?? null,
+                    $userUsername,
                     $groupMsg['text'] ?? $groupMsg['caption'] ?? null,
                     $ent,
                     date('Y-m-d H:i:s', $groupMsg['date']),
