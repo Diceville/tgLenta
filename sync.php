@@ -273,6 +273,19 @@ foreach ($updates as $update) {
         && (!empty($groupMsg['text']) || !empty($groupMsg['caption']))
     ) {
         $postId = findPostIdForComment($pdo, $groupMsg);
+        if (!empty($_GET['debug'])) {
+            $reply = $groupMsg['reply_to_message'] ?? null;
+            $fwdOrigin = $reply['forward_origin'] ?? null;
+            $errors[] = [
+                'debug_comment' => true,
+                'chat_id'       => $groupMsg['chat']['id'] ?? null,
+                'DISCUSSION_GROUP_ID' => DISCUSSION_GROUP_ID,
+                'chat_match'    => (int)($groupMsg['chat']['id'] ?? 0) === DISCUSSION_GROUP_ID,
+                'is_auto_fwd'   => $reply['is_automatic_forward'] ?? null,
+                'fwd_origin'    => $fwdOrigin,
+                'post_id_found' => $postId,
+            ];
+        }
         if ($postId) {
             $from         = $groupMsg['from'] ?? [];
             $userName     = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: null;
