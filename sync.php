@@ -120,7 +120,7 @@ function extractMedia(array $msg): array {
  *  1. reply_to_message — автоматически пересланный пост канала → forward_from_message_id
  *  2. message_thread_id — ищем другой комментарий в этом треде с уже известным post_id
  */
-function findPostIdForComment(PDO $pdo, array $msg, int $channelId): ?int {
+function findPostIdForComment(PDO $pdo, array $msg): ?int {
     // 1. Прямой ответ на пересланный пост канала
     $reply = $msg['reply_to_message'] ?? null;
     if ($reply && !empty($reply['forward_from_chat'])) {
@@ -128,11 +128,12 @@ function findPostIdForComment(PDO $pdo, array $msg, int $channelId): ?int {
         // Нормализуем: Telegram отдаёт -1001234567890, в БД хранится 1234567890
         $fwdChatId = $rawFwdId < 0 ? (int)substr((string)abs($rawFwdId), 3) : $rawFwdId;
         $fwdMsgId  = (int)($reply['forward_from_message_id'] ?? 0);
-        if ($fwdChatId === $channelId && $fwdMsgId) {
+        // Ищем по fwdChatId из самого форварда — любой sync.php найдёт пост любого канала
+        if ($fwdChatId && $fwdMsgId) {
             $stmt = $pdo->prepare(
                 "SELECT id FROM tg_posts WHERE tg_message_id = ? AND channel_id = ? LIMIT 1"
             );
-            $stmt->execute([$fwdMsgId, $channelId]);
+            $stmt->execute([$fwdMsgId, $fwdChatId]);
             $id = $stmt->fetchColumn();
             if ($id) return (int)$id;
         }
@@ -256,7 +257,7 @@ foreach ($updates as $update) {
         && empty($groupMsg['is_automatic_forward'])
         && (!empty($groupMsg['text']) || !empty($groupMsg['caption']))
     ) {
-        $postId = findPostIdForComment($pdo, $groupMsg, $channelId);
+        $postId = findPostIdForComment($pdo, $groupMsg);
         if ($postId) {
             $from         = $groupMsg['from'] ?? [];
             $userName     = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: null;
