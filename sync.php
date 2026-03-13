@@ -157,9 +157,10 @@ $pdo = db();
 
 $channelId = CHANNEL_ID;
 
-// Читаем последний обработанный update_id для этого канала
-$stmt = $pdo->prepare("SELECT `value` FROM tg_state WHERE channel_id = ? AND `key` = 'last_update_id'");
-$stmt->execute([$channelId]);
+// Глобальный offset бота хранится с channel_id = 0 —
+// один для всех блогов, чтобы не терять апдейты при работе нескольких блогов на одном боте
+$stmt = $pdo->prepare("SELECT `value` FROM tg_state WHERE channel_id = 0 AND `key` = 'last_update_id'");
+$stmt->execute();
 $lastUpdateId = (int)($stmt->fetchColumn() ?? 0);
 
 // Запрашиваем новые обновления
@@ -207,7 +208,10 @@ foreach ($updates as $update) {
         } else {
             $text         = $channelPost['text'] ?? $channelPost['caption'] ?? null;
             $msgChannelId = $channelPost['chat']['id'];
-            if (!$channelId || $msgChannelId === $channelId) {
+            // Сохраняем посты из ЛЮБОГО канала — фильтр по channel_id только в api.php.
+            // Это важно когда несколько блогов используют одного бота: один блог не должен
+            // "съедать" апдейты другого канала не сохранив их.
+            {
                 $messageId    = (int)$channelPost['message_id'];
                 $postDate     = date('Y-m-d H:i:s', $channelPost['date']);
                 $views        = isset($channelPost['views']) ? (int)$channelPost['views'] : null;
@@ -278,12 +282,12 @@ foreach ($updates as $update) {
     }
 }
 
-// Сохраняем новый offset для этого канала
+// Сохраняем глобальный offset бота (channel_id = 0)
 if ($maxUpdate > $lastUpdateId) {
     $pdo->prepare("
-        INSERT INTO tg_state (channel_id, `key`, `value`) VALUES (?, 'last_update_id', ?)
+        INSERT INTO tg_state (channel_id, `key`, `value`) VALUES (0, 'last_update_id', ?)
         ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)
-    ")->execute([$channelId, $maxUpdate]);
+    ")->execute([$maxUpdate]);
 }
 
 flock($lock, LOCK_UN);
