@@ -80,7 +80,13 @@ function renderEntities(text, entities) {
             case 'code':          html += `<code>${esc}</code>`; break;
             case 'pre':           html += `<pre>${esc}</pre>`; break;
             case 'spoiler':       html += `<span class="spoiler">${esc}</span>`; break;
-            case 'text_link':     html += `<a href="${escHtml(e.url||'')}" target="_blank" rel="noopener noreferrer">${esc}</a>`; break;
+            case 'text_link': {
+                // Если видимый текст сам является URL — используем его как href,
+                // иначе берём e.url (текст может быть "Читать далее", href — ссылка)
+                const href = /^https?:\/\//.test(raw) ? raw : (e.url || '');
+                html += `<a href="${escHtml(href)}" target="_blank" rel="noopener noreferrer">${esc}</a>`;
+                break;
+            }
             case 'url':           html += `<a href="${esc}" target="_blank" rel="noopener noreferrer">${esc}</a>`; break;
             case 'mention':       html += `<a href="https://t.me/${escHtml(raw.slice(1))}" target="_blank" rel="noopener noreferrer">${esc}</a>`; break;
             default:              html += esc;
