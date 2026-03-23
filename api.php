@@ -71,7 +71,7 @@ try {
               $channelFilter
               AND NOT (p.media_type = 'none' AND (p.text IS NULL OR p.text = '') AND p.media_url IS NULL)
             GROUP BY p.id
-            ORDER BY p.post_date DESC
+            ORDER BY p.post_date DESC, p.tg_message_id ASC
             LIMIT :limit OFFSET :offset
         ");
         $stmt->bindValue(':q',      $like,   PDO::PARAM_STR);
@@ -101,7 +101,7 @@ try {
               $channelFilter
               AND NOT (p.media_type = 'none' AND (p.text IS NULL OR p.text = '') AND p.media_url IS NULL)
             GROUP BY p.id
-            ORDER BY p.post_date DESC
+            ORDER BY p.post_date DESC, p.tg_message_id ASC
             LIMIT :limit
         ");
         $stmt->bindValue(':since_id', $sinceId, PDO::PARAM_INT);
@@ -138,7 +138,7 @@ try {
               $channelFilter
               AND NOT (p.media_type = 'none' AND (p.text IS NULL OR p.text = '') AND p.media_url IS NULL)
             GROUP BY p.id
-            ORDER BY p.post_date DESC
+            ORDER BY p.post_date DESC, p.tg_message_id ASC
             LIMIT :limit OFFSET :offset
         ");
         if ($channelId) $stmt->bindValue(':channel_id', $channelId, PDO::PARAM_INT);
@@ -248,6 +248,7 @@ function groupAlbums(array $posts): array {
             $result[] = $p;
         } else {
             $merged = $group[0];
+            $merged['tg_id']       = max(array_map(fn($gp) => $gp['tg_id'], $group));
             $merged['media_files'] = array_map(fn($gp) => $gp['media_url'], $group);
             $merged['text'] = null;
             foreach ($group as $gp) {

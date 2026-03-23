@@ -126,14 +126,16 @@ function extractMedia(array $msg): array {
 /**
  * Находит post_id для комментария из группы обсуждений.
  * Стратегия:
- *  1. reply_to_message — автоматически пересланный пост канала → forward_from_message_id
- *  2. message_thread_id — ищем другой комментарий в этом треде с уже известным post_id
+ *  1a. forward_origin.message_id (Bot API 7.0+) — точный ID поста в канале
+ *  1b. forward_from_chat + forward_from_message_id (старый формат Bot API)
+ *  1c. sender_chat.id + дата ±60 сек (запасной для репостов из других каналов)
+ *  2.  message_thread_id — ищем другой комментарий в этом треде с уже известным post_id
  */
 function findPostIdForComment(PDO $pdo, array $msg): ?int {
     // 1. Ответ на авто-пересланный пост канала в группе обсуждений
     $reply = $msg['reply_to_message'] ?? null;
     if ($reply && !empty($reply['is_automatic_forward'])) {
-        // 1a. forward_origin.message_id — точный ID поста в канале (работает для оригинальных постов)
+        // 1a. forward_origin.message_id (Bot API 7.0+)
         $fwdOrigin = $reply['forward_origin'] ?? null;
         if ($fwdOrigin && ($fwdOrigin['type'] ?? '') === 'channel' && !empty($fwdOrigin['chat'])) {
             $rawOriginId = (int)$fwdOrigin['chat']['id'];
@@ -149,13 +151,29 @@ function findPostIdForComment(PDO $pdo, array $msg): ?int {
             }
         }
 
-        // 1b. Запасной: sender_chat.id + дата с погрешностью ±30 сек (для репостов из других каналов)
+        // 1b. Старый формат Bot API: forward_from_chat + forward_from_message_id
+        $fwdChat    = $reply['forward_from_chat'] ?? null;
+        $fwdMsgId   = (int)($reply['forward_from_message_id'] ?? 0);
+        if ($fwdChat && $fwdMsgId) {
+            $rawFwdId = (int)($fwdChat['id'] ?? 0);
+            $fwdId    = $rawFwdId < 0 ? (int)substr((string)abs($rawFwdId), 3) : $rawFwdId;
+            if ($fwdId) {
+                $stmt = $pdo->prepare(
+                    "SELECT id FROM tg_posts WHERE tg_message_id = ? AND channel_id = ? LIMIT 1"
+                );
+                $stmt->execute([$fwdMsgId, $fwdId]);
+                $id = $stmt->fetchColumn();
+                if ($id) return (int)$id;
+            }
+        }
+
+        // 1c. Запасной: sender_chat.id + дата с погрешностью ±60 сек
         $senderChat  = $reply['sender_chat'] ?? [];
         $rawSenderId = (int)($senderChat['id'] ?? 0);
         $senderId    = $rawSenderId < 0 ? (int)substr((string)abs($rawSenderId), 3) : $rawSenderId;
         if ($senderId && !empty($reply['date'])) {
             $stmt = $pdo->prepare(
-                "SELECT id FROM tg_posts WHERE channel_id = ? AND ABS(UNIX_TIMESTAMP(post_date) - ?) <= 30 LIMIT 1"
+                "SELECT id FROM tg_posts WHERE channel_id = ? AND ABS(UNIX_TIMESTAMP(post_date) - ?) <= 60 LIMIT 1"
             );
             $stmt->execute([$senderId, (int)$reply['date']]);
             $id = $stmt->fetchColumn();
@@ -302,6 +320,11 @@ foreach ($updates as $update) {
         && (!empty($groupMsg['text']) || !empty($groupMsg['caption']))
     ) {
         $postId = findPostIdForComment($pdo, $groupMsg);
+        if (!$postId) {
+            $errors[] = 'Comment msg_id=' . (int)$groupMsg['message_id']
+                . ' thread=' . (int)($groupMsg['message_thread_id'] ?? 0)
+                . ': post not found (reply_to=' . (int)(($groupMsg['reply_to_message']['message_id'] ?? 0)) . ')';
+        }
         if ($postId) {
             $from         = $groupMsg['from'] ?? [];
             $senderChat   = $groupMsg['sender_chat'] ?? [];
